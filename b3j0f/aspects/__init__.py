@@ -3,10 +3,12 @@
 
 __version__ = "0.1.0"
 
-from .advice import weave, unweave, get_advices
+from .joinpoint import is_intercepted, get_intercepted
+from .advice import get_advices, weave, unweave
 
 __all__ = [
+    'is_intercepted',
+    'get_intercepted',
     'get_advices',
     'weave',
-    'unweave'
-]
+    'unweave']

@@ -10,7 +10,7 @@ from sys import path
 # get setup directory abspath
 _path = dirname(abspath(__file__))
 
-# import package
+# import aspects
 path.append(_path)
 import b3j0f.aspects as package
 
@@ -21,7 +21,8 @@ with open(join(_path, 'README')) as f:
 setup(
     name=package.__name__,
     version=package.__version__,
-    packages=find_packages(where=_path, exclude=['*.test.*']),
+    packages=find_packages(where=_path, exclude=['*.test']),
+    package_dir={'': _path},
     author="b3j0f",
     author_email="mrb3j0f@gmail.com",
     description="Python Aspect Oriented Programming",

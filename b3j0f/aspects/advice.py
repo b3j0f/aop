@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
 from re import compile as recompile
 
 from uuid import uuid4 as uuid
@@ -12,8 +11,8 @@ from inspect import ismethod, isfunction, getmembers
 
 from collections import Iterable
 
-from .joinpoint import _get_interception_joinpoint, _apply_interception, \
-    _unapply_interception, is_joinpoint, _get_joinpoint_function
+from .joinpoint import get_intercepted, _apply_interception, \
+    _unapply_interception, is_intercepted, _function
 
 
 class AdviceError(Exception):
@@ -38,10 +37,12 @@ class JoinpointExecutor(object):
         'context',  # context execution
         '_advices',  # advices
         '_joinpoint',  # joinpoint
-        '_interception_joinpoint',  # interception joinpoint
-        '_advices_iterator')  # internal iterator for advices execution
+        'callee',  # interception joinpoint
+        '_advices_iterator',  # internal iterator for advices execution
+        'args',
+        'kwargs')
 
-    def __init__(self, joinpoint, *advices):
+    def __init__(self, *advices):
         """
         Initialize a new JoinpointExecutor with a joinpoint,
         its calling arguments and a list of advices.
@@ -54,9 +55,6 @@ class JoinpointExecutor(object):
             to joinpoint.
         :type advices: list of callables
         """
-
-        # set joinpoint
-        self.joinpoint = joinpoint
 
         # set execution context
         self.context = {}
@@ -72,8 +70,8 @@ class JoinpointExecutor(object):
 
     @joinpoint.setter
     def joinpoint(self, value):
-        self._interception_joinpoint = value
-        self._joinpoint = _get_interception_joinpoint(value)
+        self.callee = value
+        self._joinpoint = get_intercepted(value)
         if self._joinpoint is None:
             self._joinpoint = value
 
@@ -86,18 +84,30 @@ class JoinpointExecutor(object):
         self._advices = value
         self._advices_iterator = iter(value)
 
-    def __call__(self, *args, **kwargs):
+    def _execute(self, args, kwargs):
         """
-        Proceed this JoinpointExecutor in calling all advices with this such
-        as the only one parameter, and call at the end the joinpoint.
+        Start to execute this JoinpointExecutor.
+        Must be called at the beginning of self execution.
         """
+
+        self.args = args
+        self.kwargs = kwargs
 
         # check if an iterator is available
         if self._advices_iterator is None:
             # if not, get joinpoint advices
-            advices = get_advices(self._interception_joinpoint)
+            advices = get_advices(self.callee)
             # and get the advices iterator
             self._advices_iterator = iter(advices if advices else [])
+
+        # call self
+        self()
+
+    def execute(self):
+        """
+        Proceed this JoinpointExecutor in calling all advices with this such
+        as the only one parameter, and call at the end the joinpoint.
+        """
 
         try:
             # get next advice
@@ -105,11 +115,18 @@ class JoinpointExecutor(object):
 
         except StopIteration:
             # if no advice can be applied, call joinpoint
-            return self._joinpoint(*args, **kwargs)
+            return self._joinpoint(*self.args, **self.kwargs)
 
         else:
             # if has next, apply advice on self
-            return advice(_jpe=self, *args, **kwargs)
+            return advice(self)
+
+    def __call__(self):
+        """
+        Shortcut to self.execute
+        """
+
+        return self.execute()
 
     @staticmethod
     def _get_interception_function(joinpoint_function):
@@ -125,27 +142,27 @@ class JoinpointExecutor(object):
         """
 
         @wraps(joinpoint_function)
-        def interception_function(*args, **kwargs):
+        def interception(*args, **kwargs):
             """
             Instantiate a JoinpointExecutor and proceeds it.
             """
 
             # get joinpointexecution from global scope
-            # TODO: set joinpointexecution among consts or fast loading
-            return joinpointexecution(*args, **kwargs)
+            # TODO: set joinpointexecution among consts for fast loading
+            return joinpointexecution._execute(args, kwargs)
 
         # add interception environment in interception globals
         interception_globals = {
             'joinpointexecution': JoinpointExecutor(
                 joinpoint=joinpoint_function)
         }
-        # update interception_function globals
-        interception_function.func_globals.update(interception_globals)
+        # update interception globals
+        interception.func_globals.update(interception_globals)
 
-        return interception_function
+        return interception
 
 
-def _add_advices(joinpoint, *advices):
+def _add_advices(joinpoint, advices, ordered):
     """
     Add advices on input joinpoint.
 
@@ -154,53 +171,37 @@ def _add_advices(joinpoint, *advices):
 
     :param advices: advices to weave on input joinpoint
     :type advices: advices
+
+    :param ordered: ensure advices to add will be done in input order or not
+    :type ordered: bool
     """
 
-    advices = get_advices(joinpoint)
+    _advices = getattr(joinpoint, _ADVICES, None)
 
-    advices += advices
+    if not _advices:
+        _advices = [] if ordered else set()
+
+    if ordered:
+        for advice in advices:
+            _advices.append(advice)
+    else:
+        for advice in advices:
+            _advices.add(advice)
+
+    setattr(joinpoint, _ADVICES, _advices)
 
 
-def _remove_advices(joinpoint, *advice_ids):
+def _remove_advices(joinpoint, *advices):
     """
-    Remove advices from input element identified by advice_ids and \
-    return removed ids.
-    """
-
-    result = []
-
-    advices = get_advices(joinpoint)
-
-    for advice in list(advices):
-
-        try:
-            advice_ids.remove(advice.uuid)
-            result.append(advice.uuid)
-            advices.remove(advice)
-
-        except ValueError:
-            pass
-
-    return result
-
-
-def _enable(joinpoint, enable, *advice_ids):
-    """
-    Enable or disable all joinpoint advices designated by input advice_ids.
-
-    If advice_ids is empty, apply (dis|en)able state to all joinpoint advices.
+    Remove advices from input joinpoint.
     """
 
-    advices = get_advices(joinpoint)
+    _advices = getattr(joinpoint, _ADVICES)
 
-    _all = len(advice_ids) == 0
+    if _advices:
+        _advices = (advice for advice in _advices if advice not in advices)
 
-    for advice in advices:
-        try:
-            if _all or advice_ids.remove(advice.uuid):
-                advice.enable = enable
-        except ValueError:
-            pass
+    setattr(joinpoint, _ADVICES, _advices)
 
 
 def get_advices(element):
@@ -212,16 +213,17 @@ def get_advices(element):
 
     result = None
 
-    if is_joinpoint(element):
+    if is_intercepted(element):
 
-        joinpoint_function = _get_joinpoint_function(element)
+        joinpoint_function = _function(element)
 
         if joinpoint_function is not None:
             result = getattr(joinpoint_function, _ADVICES, None)
 
             if result is None:
-                result = []
-                setattr(joinpoint_function, _ADVICES, result)
+                result = ()
+            else:
+                result = tuple(result)
 
     return result
 
@@ -249,7 +251,9 @@ def _publicmembers(joinpoint):
         joinpoint, '__name__', '').startswith('_')
 
 
-def weave(joinpoint, advices, pointcut=None, depth=1, public=False):
+def weave(
+    joinpoint, advices, pointcut=None, depth=1, public=False, ordered=True
+):
     """
     Weave advices on joinpoint with input pointcut.
 
@@ -271,11 +275,18 @@ def weave(joinpoint, advices, pointcut=None, depth=1, public=False):
     :param public: (default True) weave only on public members
     :type public: bool
 
+    :param ordered: (default True) ensure input advices order at runtime
+    :type ordered: bool
+
     :return: the intercepted functions created from input joinpoint.
     """
 
+    # initialize advices
     if not isinstance(advices, Iterable):
-        advices = (advices,)
+        advices = [advices] if ordered else {advices}
+
+    elif not ordered and not isinstance(advices, set):
+        advices = set(advices)
 
     # check for not empty advices
     if not advices:
@@ -299,51 +310,57 @@ or be a str or a function/method. Not {1}".
     result = []
 
     _weave(
-        joinpoint, advices, pointcut, depth,
-        _publicmembers if public else callable, result)
+        joinpoint=joinpoint, advices=advices, pointcut=pointcut, depth=depth,
+        depth_predicate=_publicmembers if public else callable,
+        intercepted=result, ordered=ordered)
 
     return result
 
 
-def _weave(joinpoint, advices, pointcut, depth, depth_predicate, intercepted):
+def _weave(
+    joinpoint, advices, pointcut, depth, depth_predicate, intercepted, ordered
+):
     """
     Weave deeply advices in joinpoint
     """
 
     if isfunction(joinpoint):
         weaved_function = _apply_pointcut(
-            joinpoint, joinpoint, advices, pointcut)
+            joinpoint=joinpoint, function=joinpoint, advices=advices,
+            pointcut=pointcut, ordered=ordered)
         intercepted.append(weaved_function)
 
     elif ismethod(joinpoint):
         weaved_function = _apply_pointcut(
-            joinpoint, joinpoint.im_func, advices, pointcut)
+            joinpoint=joinpoint, function=joinpoint.im_func, advices=advices,
+            pointcut=pointcut, ordered=ordered)
         intercepted.append(weaved_function)
 
     # search inside the joinpoint
     elif depth > 0:  # for an object or a class, weave on methods
         for name, member in getmembers(joinpoint, depth_predicate):
             weaved_functions = _weave(
-                member, advices, pointcut, depth - 1, depth_predicate,
-                intercepted)
+                joinpoint=member, advices=advices, pointcut=pointcut,
+                depth=depth - 1, depth_predicate=depth_predicate,
+                intercepted=intercepted, ordered=ordered)
             intercepted += weaved_functions
 
 
-def _apply_pointcut(joinpoint, function, advices, pointcut=None):
+def _apply_pointcut(joinpoint, function, advices, pointcut, ordered):
     """
     Apply pointcut on input joinpoint.
     """
 
     if pointcut is None or pointcut(joinpoint):
         # ensure interception if it does not exist
-        if not is_joinpoint(joinpoint):
+        if not is_intercepted(joinpoint):
             interception = JoinpointExecutor._get_interception_function(
                 function)
-            _apply_interception(
-                joinpoint,
-                interception)
+            interception = _apply_interception(joinpoint, interception)
+            interception.func_globals['joinpointexecution'].joinpoint = \
+                function
 
-        _add_advices(joinpoint, *advices)
+        _add_advices(joinpoint=joinpoint, advices=advices, ordered=ordered)
 
 
 def unweave(joinpoint, *advices):
@@ -398,15 +415,12 @@ class Advice(object):
         return self._uid
 
     @property
-    def enable(self, enable=None):
+    def enable(self):
         """
         Get self enable state. Change state if input enable is a boolean.
 
         TODO: change of method execution instead of saving a state.
         """
-
-        if enable is not None:
-            self._enable = enable
 
         return self._enable
 
@@ -428,9 +442,37 @@ class Advice(object):
         if self._enable:
             result = self._impl(joinpointexecution)
         else:
-            result = joinpointexecution.proceed()
+            result = joinpointexecution.execute()
 
         return result
+
+    @staticmethod
+    def set_enable(joinpoint, enable=True, advice_ids=None):
+        """
+        Enable or disable all joinpoint Advices designated by input advice_ids.
+
+        If advice_ids is None, apply (dis|en)able state to all advices.
+        """
+
+        advices = get_advices(joinpoint)
+
+        for advice in advices:
+            try:
+                if isinstance(Advice) \
+                        and (advice_ids is None or advice.uuid in advice_ids):
+                    advice.enable = enable
+            except ValueError:
+                pass
+
+    @staticmethod
+    def weave(joinpoint, advices, pointcut=None, depth=1, public=False):
+
+        advices = [advice if isinstance(advice, Advice) else Advice(advice)
+            for advice in advices]
+
+        weave(
+            joinpoint=joinpoint, advices=advices, pointcut=pointcut,
+            depth=depth, public=public)
 
     def __call__(self, joinpointexecution):
 
