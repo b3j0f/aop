@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -13,25 +12,27 @@ object.
 from inspect import isbuiltin, ismethod, isclass, isfunction, getmodule, \
     getmembers
 
-# used by python to save function code
-_FUNC_CODE = '__code__'
-
-# attribute which binds the intercepted function from the interceptor function
+#: attribute which binds the intercepted function from the interceptor function
 _INTERCEPTED = '_intercepted'
+
+#: attribute which binds an interception function to its parent joinpoint
+_JOINPOINT = '_joinpoint'
 
 
 class JoinpointError(Exception):
+    """
+    Handle Joinpoint errors
+    """
     pass
 
 
-def _function(joinpoint):
+def get_function(joinpoint):
     """
     Get joinpoint function if joinpoint.
 
     None in other cases.
 
     :param joinpoint: joinpoint from where getting the joinpoint function.
-    :type joinpoint: object
 
     :return: function corresponding to input joinpoint or None if it is
         impossible to get a joinpoint function.
@@ -56,7 +57,7 @@ def _function(joinpoint):
     # if joinpoint is a class, result is the constructor function
     elif isclass(joinpoint):
         constructor = getattr(joinpoint, '__init__', joinpoint.__new__)
-        result = _function(constructor)
+        result = get_function(constructor)
 
     # else get callable function
     else:
@@ -66,46 +67,30 @@ def _function(joinpoint):
     return result
 
 
-def _is_not_modifiable(joinpoint):
-    """
-    Check if joinpoint is modifiable or requires to create a wrapper in order
-    to ensure its interception.
-
-    :return: True iif input joinpoint can not be modified.
-    :rtype: bool
-    """
-
-    result = isbuiltin(joinpoint) or hasattr(joinpoint, '__slots__')
-
-    return result
-
-
 def _apply_interception(joinpoint, interception_function, _globals=None):
     """
     Apply interception on input joinpoint and return the final joinpoint.
 
-    :param joinpoint: joinpoint on applying the interception_function
-    :type joinpoint: function
+    :param function joinpoint: joinpoint on applying the interception_function
 
-    :param interception_function: interception function to apply on
-        joinpoint.
+    :param interception_function: interception function to apply on joinpoint
     :type interception_function: function
 
-    :return: both interception and intercepted functions
-        - if joinpoint is not a modifiable function,
-            the result is a (wrapper function, joinpoint).
+    :return: both interception object and intercepted functions
+        - if joinpoint is a builtin function,
+            the result is a (wrapper function, builtin).
         - if joinpoint is a function, interception is joinpoint where
             code is intercepted code, and interception is a new function where
             code is joinpoint code.
-    :rtype: tuple(function, function)
+    :rtype: tuple(callable, function)
     """
 
     intercepted = joinpoint
     interception = interception_function
 
-    # if joinpoint is not modifiable
-    if _is_not_modifiable(joinpoint):
-        # update not modifiable function reference in module with wrapper
+    # if joinpoint is a bultin
+    if isbuiltin(joinpoint):
+        # update builtin function reference in module with wrapper
         module = getmodule(joinpoint)
         found = False  # check for found function
 
@@ -121,42 +106,45 @@ def _apply_interception(joinpoint, interception_function, _globals=None):
                 Must be contained in module %s" % (joinpoint, module))
 
     else:  # update code with interception code
-
+        joinpoint_function = get_function(joinpoint)
         interception = joinpoint
         intercepted = interception_function
 
         # switch of code between joinpoint_function and
         # interception_function
-        func_code = getattr(intercepted, _FUNC_CODE)
-        setattr(intercepted, _FUNC_CODE, getattr(interception, _FUNC_CODE))
-        setattr(interception, _FUNC_CODE, func_code)
+        joinpoint_function.__code__, interception_function.__code__ = \
+            interception_function.__code__, joinpoint_function.__code__
 
-    # add intercepted into interception globals and attributes
-    setattr(interception, _INTERCEPTED, intercepted)
-    interception.func_globals[_INTERCEPTED] = intercepted
+    # add intercepted into interception_function globals and attributes
+    interception_function = get_function(interception)
+
+    setattr(interception_function, _INTERCEPTED, intercepted)
+    interception_function.func_globals[_INTERCEPTED] = intercepted
+
+    setattr(interception_function, _JOINPOINT, interception)
+    interception_function.func_globals[_JOINPOINT] = interception
 
     if _globals is not None:
-        interception.func_globals.update(_globals)
+        interception_function.func_globals.update(_globals)
 
-    return interception, intercepted
+    return interception_function, intercepted
 
 
 def _unapply_interception(joinpoint):
     """
     Unapply interception on input joinpoint in cleaning it.
 
-    :param joinpoint: joinpoint from where removing an interception function.
-        is_joinpoint(joinpoint) must be True.
-    :type joinpoint: routine.
+    :param routine joinpoint: joinpoint from where removing an interception
+        function. is_joinpoint(joinpoint) must be True.
     """
 
-    joinpoint_function = _function(joinpoint)
+    joinpoint_function = get_function(joinpoint)
 
     # get previous joinpoint
     intercepted = getattr(joinpoint_function, _INTERCEPTED)
 
     # if old joinpoint is a not modifiable resource
-    if _is_not_modifiable(intercepted):
+    if isbuiltin(intercepted):
         module = getmodule(intercepted)
         found = False
 
@@ -173,10 +161,8 @@ def _unapply_interception(joinpoint):
                 %s. Must be contained in module %s" % (joinpoint, module))
 
     else:
-
         # update old code on joinpoint
-        setattr(joinpoint_function, _FUNC_CODE,
-            getattr(intercepted, _FUNC_CODE))
+        joinpoint_function.__code__ = intercepted.__code__
         # and delete the _INTERCEPTED attribute
         delattr(joinpoint_function, _INTERCEPTED)
 
@@ -186,7 +172,6 @@ def is_intercepted(element):
     True iif input element is intercepted.
 
     :param element: element to check such as an intercepted element.
-    :type element: object.
 
     :return: True iif input element is intercepted.
     :rtype: bool
@@ -195,7 +180,7 @@ def is_intercepted(element):
     result = False
 
     # get interception function from input element
-    interception_function = _function(element)
+    interception_function = get_function(element)
 
     if interception_function is not None:
         # has _INTERCEPTED attribute ?
@@ -208,17 +193,26 @@ def get_intercepted(joinpoint):
     """
     Get intercepted function from input joinpoint.
 
-    :param joinpoint: joinpoint from where getting the intercepted function
-    :type joinpoint: joinpoint
+    :param joinpoint joinpoint: joinpoint from where getting the intercepted
+        function
 
-    :raise JoinpointError: if joinpoint is not a joinpoint
+    :return: joinpoint intercepted function.
+        None if no intercepted function exist
+    :rtype: function or NoneType
     """
 
-    interception = _function(joinpoint)
+    interception = get_function(joinpoint)
 
     result = getattr(interception, _INTERCEPTED, None)
 
-    if result is None:
-        raise JoinpointError('joinpoint %s must be a joinpoint' % joinpoint)
+    return result
+
+
+def get_joinpoint(function):
+    """
+    Get parent function joinpoint.
+    """
+
+    result = getattr(function, _JOINPOINT, None)
 
     return result

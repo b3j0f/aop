@@ -12,7 +12,7 @@ _path = dirname(abspath(__file__))
 
 # import aspects
 path.append(_path)
-import b3j0f.aspects as package
+import b3j0f.aop as package
 
 # get long description
 with open(join(_path, 'README')) as f:
