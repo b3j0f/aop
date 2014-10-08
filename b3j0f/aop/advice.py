@@ -8,10 +8,15 @@ from functools import wraps
 
 from inspect import getmembers, isroutine
 
+from opcode import opmap
+
+LOAD_CONST = opmap['LOAD_CONST']
+
 from collections import Iterable
 
 from b3j0f.aop.joinpoint import (get_intercepted, _apply_interception,
     _unapply_interception, is_intercepted, get_function)
+
 
 _ADVICES = '_advices'  #: joinpoint advices attribute name
 
@@ -132,7 +137,7 @@ class AdvicesExecutor(object):
 
             # init kwargs if not None
             if kwargs is not None:
-                self.kwargs = None
+                self.kwargs = kwargs
 
             # advices are input advices if not None else get_advices(joinpoint)
             if advices is not None:
@@ -142,7 +147,7 @@ class AdvicesExecutor(object):
                 self.advices = get_advices(self.callee)
 
             # initialize self._advices_iterator
-            self._advices_iterator = iter(self.advices)
+            self._advices_iterator = iter(self._advices)
 
         try:
             # get next advice
@@ -196,7 +201,7 @@ class AdvicesExecutor(object):
         return interception
 
 
-def _add_advices(joinpoint, advices, ordered):
+def _add_advices(joinpoint, advices):
     """
     Add advices on input joinpoint.
 
@@ -207,15 +212,8 @@ def _add_advices(joinpoint, advices, ordered):
 
     _advices = getattr(joinpoint, _ADVICES, [])
 
-    if ordered:
-        _advices = list(_advices)
-        for advice in advices:
-            _advices.append(advice)
-
-    else:
-        _advices = set(_advices)
-        for advice in advices:
-            _advices.add(advice)
+    for advice in advices:
+        _advices.append(advice)
 
     setattr(joinpoint, _ADVICES, _advices)
 
@@ -254,25 +252,18 @@ def get_advices(element):
     return result
 
 
-class NameMatcher(object):
+def _namematcher(regex):
     """
     Checks if a joinpoint name matches with an input regular expression
     """
 
-    __slots__ = ('name_matcher')
+    matcher = re_compile(regex)
 
-    def __init__(self, regex):
-
-        super(NameMatcher, self).__init__()
-
-        self.name_matcher = re_compile(regex)
-
-    def __call__(self, joinpoint):
-
+    def match(joinpoint):
         joinpoint_name = getattr(joinpoint, '__name__', '')
-        result = self.name_matcher.match(joinpoint_name)
-
+        result = matcher.match(joinpoint_name)
         return result
+    return match
 
 
 def _publicmembers(joinpoint):
@@ -282,7 +273,7 @@ def _publicmembers(joinpoint):
 
 
 def weave(
-    joinpoint, advices, pointcut=None, depth=1, public=False, ordered=True,
+    joinpoint, advices, pointcut=None, depth=1, public=False,
     pointcut_application=None
 ):
     """
@@ -306,9 +297,6 @@ def weave(
     :param public: (default True) weave only on public members
     :type public: bool
 
-    :param ordered: (default True) ensure input advices order at runtime
-    :type ordered: bool
-
     :param pointcut_application: routine which applies a pointcut when
         required. AdvicesExecutor().apply_pointcut by default. Such routine has
         to take in parameters a routine called joinpoint and its related
@@ -323,12 +311,9 @@ def weave(
 
     # initialize advices
     if not isinstance(advices, Iterable):
-        advices = [advices] if ordered else {advices}
+        advices = [advices]
 
-    elif not ordered and not isinstance(advices, set):
-        advices = set(advices)
-
-    elif ordered and not isinstance(advices, list):
+    elif not isinstance(advices, list):
         advices = list(advices)
 
     # check for not empty advices
@@ -344,7 +329,7 @@ def weave(
 
     # in case of str, use a name matcher
     elif isinstance(pointcut, str):
-        pointcut = NameMatcher(pointcut)
+        pointcut = _namematcher(pointcut)
 
     else:
         error_msg = "Wrong pointcut to check weaving on {0}.".format(joinpoint)
@@ -359,14 +344,13 @@ def weave(
     _weave(
         joinpoint=joinpoint, advices=advices, pointcut=pointcut, depth=depth,
         depth_predicate=_publicmembers if public else callable,
-        intercepted=result, ordered=ordered,
-        pointcut_application=pointcut_application)
+        intercepted=result, pointcut_application=pointcut_application)
 
     return result
 
 
 def _weave(
-    joinpoint, advices, pointcut, depth, depth_predicate, intercepted, ordered,
+    joinpoint, advices, pointcut, depth, depth_predicate, intercepted,
     pointcut_application
 ):
     """
@@ -374,20 +358,17 @@ def _weave(
     """
 
     # if weaving has to be done
-    if isroutine(joinpoint) and pointcut is None or pointcut(joinpoint):
+    if isroutine(joinpoint) and (pointcut is None or pointcut(joinpoint)):
 
         # get joinpoint interception function
         interception_function = get_function(joinpoint)
-        print interception_function, joinpoint
         # intercept joinpoint if not intercepted
         if not is_intercepted(joinpoint):
 
             interception_function = pointcut_application(
                 joinpoint=joinpoint, function=interception_function)
-        print interception_function, joinpoint
         # add advices to the interception function
-        _add_advices(
-            joinpoint=interception_function, advices=advices, ordered=ordered)
+        _add_advices(joinpoint=interception_function, advices=advices)
 
         # append interception function to the intercepted ones
         intercepted.append(interception_function)
@@ -398,7 +379,7 @@ def _weave(
             _weave(
                 joinpoint=member, advices=advices, pointcut=pointcut,
                 depth=depth - 1, depth_predicate=depth_predicate,
-                intercepted=intercepted, ordered=ordered,
+                intercepted=intercepted,
                 pointcut_application=pointcut_application)
 
 
@@ -409,9 +390,10 @@ def unweave(joinpoint, *advices):
     Input advices are of type Advice or UUID.
     """
 
-    advice_ids = \
-        (advice.uuid for advice in advices if isinstance(advice, Advice)) +\
-        (advice for advice in advices if isinstance(advice, uuid.UUID))
+    uuids_advices = (adv.uuid for adv in advices if isinstance(adv, Advice))
+    uuids_advices = (uid for uid in advices if isinstance(uid, uuid.UUID))
+
+    advice_ids = uuids_advices + uuids_advices
 
     _remove_advices(joinpoint, *advice_ids)
 

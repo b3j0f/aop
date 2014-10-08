@@ -8,51 +8,65 @@ from b3j0f.aop.advice import AdvicesExecutor, Advice, weave
 
 class AdvicesExecutionTest(TestCase):
 
-    def test_execution(self):
+    def setUp(self):
 
         def a():
             return 2
 
-        je = AdvicesExecutor(joinpoint=a)
+        self.je = AdvicesExecutor(joinpoint=a)
 
-        result = je.execute()
+    def test_execution(self):
 
-        self.assertEquals(result, 2, 'check AdvicesExecutor proceed')
+        result = self.je.execute()
 
-        def advice(_jpe):
-            proceed = _jpe.execute()
+        self.assertEqual(result, 2, 'check AdvicesExecutor proceed')
+
+    def test_add_advices(self):
+
+        def advice(jpe):
+
+            proceed = jpe.execute()
 
             return proceed, 3
 
-        je.advices = [advice]
+        self.je.advices = [advice]
 
-        result = je()
+        result = self.je()
 
-        self.assertEquals(result, (2, 3), 'check AdvicesExecutor proceed')
+        self.assertEqual(result, (2, 3), 'check AdvicesExecutor proceed')
 
 
 class AdviceTest(TestCase):
 
     def setUp(self):
-        self.advice = Advice(lambda x: 2)
+
+        self.advice = Advice(impl=lambda x: 2)
 
     def test_apply(self):
-        self.assertEquals(self.advice.apply(None), 2)
+
+        self.assertEqual(self.advice.apply(None), 2)
 
     def test_enable(self):
-        self.assertEquals(self.advice.enable, True)
-        pass
+
+        self.assertEqual(self.advice.enable, True)
 
 
 class WeaveTest(TestCase):
 
     def setUp(self):
+
         self.count = 0
 
     def advicesexecutor(self, advicesexecutor):
-        self.count += 1
+        """
+        Default interceptor which increments self count
+        """
 
-    def _test_method(self):
+        self.count += 1
+        return advicesexecutor.execute()
+
+    def test_method(self):
+
         class A():
             def __init__(self):
                 pass
@@ -62,10 +76,9 @@ class WeaveTest(TestCase):
 
         weave(
             joinpoint=A.a,
-            advices=[self.advicesexecutor, self.advicesexecutor],
-            sort=True)
-        weave(A.__init__, self.advicesexecutor)
-        weave(A, self.advicesexecutor, '__init__')
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(joinpoint=A.__init__, advices=self.advicesexecutor)
+        weave(joinpoint=A, advices=self.advicesexecutor, pointcut='__init__')
 
         a = A()
         a.a()
@@ -79,38 +92,72 @@ class WeaveTest(TestCase):
 
         weave(
             joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor],
-            ordered=True)
-
+            advices=[self.advicesexecutor, self.advicesexecutor])
         weave(
             joinpoint=f,
-            advices=self.advicesexecutor,
-            ordered=True)
-
+            advices=self.advicesexecutor)
         f()
 
         self.assertEqual(self.count, 3)
 
+    def _assert_class(self, cls):
+        """
+        Run assertion tests on input cls
+        """
+
+        weave(joinpoint=cls, advices=self.advicesexecutor, pointcut='__init__')
+        weave(
+            joinpoint=cls,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(joinpoint=cls.B,
+            advices=self.advicesexecutor, pointcut='__init__')
+        weave(
+            joinpoint=cls.B,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=cls.C, advices=self.advicesexecutor, pointcut='__init__')
+        weave(
+            joinpoint=cls.C,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+
+        cls()
+        cls.B()
+        cls.C()
+
+        self.assertEqual(self.count, 6)
+
     def test_class(self):
 
         class A(object):
+
             class B(object):
-                def b():
+                def __init__(self):
                     pass
+
+            class C(object):
+                pass
 
             def __init__(self):
                 pass
 
-            def a(self):
+        self._assert_class(A)
+
+    def test_namespace(self):
+
+        class A:
+
+            class B:
+                def __init__(self):
+                    pass
+
+            class C:
                 pass
 
-        weave(A, self.advicesexecutor, '__init__')
-        weave(A, [self.advicesexecutor, self.advicesexecutor])
+            def __init__(self):
+                pass
 
-        a = A()
-        a.a()
+        self._assert_class(A)
 
-        self.assertEqual(self.count, 3)
 
 if __name__ == '__main__':
     main()

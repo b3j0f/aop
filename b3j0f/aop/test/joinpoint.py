@@ -15,7 +15,7 @@ class GetFunctionTest(TestCase):
     def test_builtin(self):
         _max = get_function(max)
 
-        self.assertTrue(_max is _max)
+        self.assertIs(_max, None)
 
     def test_method(self):
         class A:
@@ -24,15 +24,14 @@ class GetFunctionTest(TestCase):
 
         A_function = get_function(A.method)
 
-        self.assertTrue(
-            A_function is A.method.im_func)
+        self.assertIs(A_function, A.method.im_func)
 
         a = A()
 
         a_function = get_function(a.method)
 
-        self.assertTrue(a_function is a.method.im_func)
-        self.assertTrue(A_function is a_function)
+        self.assertIs(a_function, a.method.im_func)
+        self.assertIs(A_function, a_function)
 
     def test_function(self):
 
@@ -41,7 +40,7 @@ class GetFunctionTest(TestCase):
 
         a_function = get_function(function)
 
-        self.assertTrue(a_function is function)
+        self.assertIs(a_function, function)
 
 
 class ApplyInterceptionTest(TestCase):
