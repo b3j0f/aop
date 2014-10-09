@@ -53,7 +53,7 @@ class ApplyInterceptionTest(TestCase):
         func_code = function.__code__
 
         self.assertFalse(is_intercepted(function), 'check joinpoint')
-        self.assertTrue(get_intercepted(min) is None)
+        self.assertIs(get_intercepted(min), None)
 
         if interception is None:
             interception, intercepted = _apply_interception(
@@ -61,25 +61,25 @@ class ApplyInterceptionTest(TestCase):
 
         self.assertTrue(isinstance(interception, FunctionType), 'check type')
 
-        self.assertTrue(interception is function, 'check update')
-        self.assertTrue(get_intercepted(function) is intercepted)
+        self.assertIs(interception, function, 'check update')
+        self.assertIs(get_intercepted(function), intercepted)
         self.assertTrue(is_intercepted(function), 'check joinpoint')
-        self.assertFalse(interception.__code__ is func_code, 'check __code__')
-        self.assertTrue(intercepted.__code__ is func_code, 'check __code__')
+        self.assertIsNot(interception.__code__, func_code, 'check __code__')
+        self.assertIs(intercepted.__code__, func_code, 'check __code__')
 
         _unapply_interception(function)
 
         self.assertFalse(is_intercepted(function), 'check is jointpoint')
-        self.assertTrue(interception is function, 'check update')
-        self.assertTrue(function.__code__ is func_code, 'check update')
-        self.assertTrue(get_intercepted(function) is None)
+        self.assertIs(interception, function, 'check update')
+        self.assertIs(function.__code__, func_code, 'check update')
+        self.assertIsNone(get_intercepted(function))
 
     def test_method(self):
         class A(object):
             def method(self):
                 pass
 
-        self.assertTrue(get_intercepted(A.method) is None)
+        self.assertIsNone(get_intercepted(A.method))
         self.assertFalse(is_intercepted(A.method))
 
         interception, intercepted = _apply_interception(A.method, lambda: None)
@@ -88,19 +88,19 @@ class ApplyInterceptionTest(TestCase):
             isinstance(get_joinpoint(interception), MethodType), 'check type')
 
         self.assertTrue(is_intercepted(interception), 'check joinpoint')
-        self.assertFalse(interception is A.method)  # TODO: check why false xD
-        self.assertTrue(get_intercepted(A.method) is intercepted)
+        self.assertIsNot(interception, A.method)  # TODO: check why false xD
+        self.assertIs(get_intercepted(A.method), intercepted)
 
         _unapply_interception(A.method)
 
         self.assertFalse(is_intercepted(interception), 'check not joinpoint')
-        self.assertTrue(get_intercepted(A.method) is None)
+        self.assertIsNone(get_intercepted(A.method))
 
     def test_builtin(self):
 
         function = min
 
-        self.assertTrue(get_intercepted(min) is None)
+        self.assertIsNone(get_intercepted(min))
         self.assertFalse(is_intercepted(min))
 
         interception, intercepted = _apply_interception(min, lambda: None)
@@ -108,21 +108,21 @@ class ApplyInterceptionTest(TestCase):
         self.assertTrue(isinstance(interception, FunctionType), "check type")
 
         self.assertTrue(is_intercepted(min), "check joinpoint")
-        self.assertTrue(interception is min, 'check update reference')
-        self.assertFalse(min is function, 'check update reference')
-        self.assertTrue(get_intercepted(min) is intercepted)
+        self.assertIs(interception, min, 'check update reference')
+        self.assertIsNot(min, function, 'check update reference')
+        self.assertIs(get_intercepted(min), intercepted)
 
         _unapply_interception(interception)
 
         self.assertFalse(is_intercepted(min), 'check joinpoint')
-        self.assertFalse(interception is min, 'check update reference')
-        self.assertTrue(min is function, 'check update reference')
-        self.assertTrue(get_intercepted(min) is None)
+        self.assertIsNot(interception, min, 'check update reference')
+        self.assertIs(min, function, 'check update reference')
+        self.assertIsNone(get_intercepted(min))
 
     def test_class(self):
 
         self.assertFalse(is_intercepted(ApplyInterceptionTest))
-        self.assertTrue(get_intercepted(ApplyInterceptionTest) is None)
+        self.assertIsNone(get_intercepted(ApplyInterceptionTest))
 
         interception, intercepted = _apply_interception(
             ApplyInterceptionTest, lambda: None)
@@ -130,13 +130,13 @@ class ApplyInterceptionTest(TestCase):
         self.assertTrue(isinstance(ApplyInterceptionTest, type))
 
         self.assertTrue(is_intercepted(ApplyInterceptionTest))
-        self.assertTrue(get_joinpoint(interception) is ApplyInterceptionTest)
-        self.assertTrue(get_intercepted(ApplyInterceptionTest) is intercepted)
+        self.assertIs(get_joinpoint(interception), ApplyInterceptionTest)
+        self.assertIs(get_intercepted(ApplyInterceptionTest), intercepted)
 
         _unapply_interception(interception)
 
         self.assertFalse(is_intercepted(ApplyInterceptionTest))
-        self.assertTrue(get_intercepted(ApplyInterceptionTest) is None)
+        self.assertIsNone(get_intercepted(ApplyInterceptionTest))
 
 
 if __name__ == '__main__':
