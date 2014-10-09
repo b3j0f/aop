@@ -4,19 +4,29 @@ from re import compile as re_compile
 
 from uuid import uuid4 as uuid
 
-from functools import wraps
-
-from inspect import getmembers, isroutine
+from inspect import getmembers, isroutine, getargspec
 
 from opcode import opmap
 
-LOAD_CONST = opmap['LOAD_CONST']
+from types import CodeType, FunctionType
 
 from collections import Iterable
 
 from b3j0f.aop.joinpoint import (get_intercepted, _apply_interception,
     _unapply_interception, is_intercepted, get_function)
 
+# consts for interception loading
+LOAD_CONST = opmap['LOAD_CONST']
+LOAD_FAST = opmap['LOAD_FAST']
+STORE_SUBSCR = opmap['STORE_SUBSCR']
+RETURN_VALUE = opmap['RETURN_VALUE']
+CALL_FUNCTION = opmap['CALL_FUNCTION']
+BUILD_MAP = opmap['BUILD_MAP']
+STORE_FAST = opmap['STORE_FAST']
+STORE_MAP = opmap['STORE_MAP']
+STORE_ATTR = opmap['STORE_ATTR']
+
+WRAPPER_ASSIGNMENTS = ('__doc__', '__annotations__')
 
 _ADVICES = '_advices'  #: joinpoint advices attribute name
 
@@ -178,23 +188,147 @@ class AdvicesExecutor(object):
         if function is None:
             function = get_function(joinpoint)
 
-        # create a wrapper function which execute an advices executor
-        @wraps(function)
-        def interception_function(*args, **kwargs):
-            """
-            Instantiate a AdvicesExecutor and proceeds it.
-            """
+        # start to construct code
+        try:
+            # try to get argspec in order to get joinpoint params
+            argspec = getargspec(function)
+        except TypeError:
+            # if joinpoint is not a python function, default values for params
+            args = ()
+            varargs = True
+            kwargs = True
+        else:
+            # else, get params from joinpoint
+            args = argspec.args
+            varargs = argspec.varargs
+            kwargs = argspec.keywords
 
-            # get advicesexecutor from global scope
-            # TODO: set advicesexecutor among consts for fast loading
-            return advicesexecutor.execute(args=args, kwargs=kwargs)
+        # new code to apply
+        newcode = []
+        # consts to use
+        newconsts = [None]
+        constindex = 0
+        newvarnames = list(function.func_code.co_varnames)
+        newnames = list(function.func_code.co_names)
+
+        # get right kwargs index
+        kwargs_index = len_args = len(args)
+        if kwargs is not None:
+            kwargs_index += 1
+        if varargs is not None:
+            kwargs_index += 1
+
+        # if args exists
+        if args:
+
+            # if kwargs does not exist, create a new dictionary
+            if kwargs is None:
+                newcode += [BUILD_MAP, 1, 0]
+                for index, arg in enumerate(args):
+                    constindex += 1
+                    newcode += [
+                        # load arg value
+                        LOAD_FAST, index & 0xFF, index >> 8,
+                        # load key arg for kwargs
+                        LOAD_CONST, constindex & 0xFF, constindex >> 8,
+                        STORE_MAP  # store arg in store map
+                    ]
+                    # add arg key in consts
+                    newconsts.append(arg)
+                # store kwargs into varnames and names
+                kwargs_index = len(newvarnames)
+                newcode += [STORE_FAST, kwargs_index & 0xFF, kwargs_index >> 8]
+                newvarnames.append('_kwargs')
+                newnames.append('kwargs')
+                # set kwargs to True in order to add it at the end of newcode
+                kwargs = True
+
+            else:
+                for index, arg in enumerate(args):
+                    constindex += 1
+                    newcode += [
+                        # load arg value
+                        LOAD_FAST, index & 0xFF, index >> 8,
+                        # load kwargs value
+                        LOAD_FAST, kwargs_index & 0xFF, kwargs_index >> 8,
+                        # load key value
+                        LOAD_CONST, constindex & 0xFF, constindex >> 8,
+                        # store arg in kwargs
+                        STORE_SUBSCR
+                    ]
+                    # add arg key for kwargs
+                    newconsts.append(arg)
+
+        # get namesindex which will be reused in store_attr operations
+        namesindex = len(newnames) - 1
+
+        # save self in consts
+        if (varargs, kwargs) != (None, None):
+            constindex += 1
+            newconsts.append(self)  # add self in consts
+
+        # set kwargs in self attributes
+        if kwargs is not None:
+            newcode += [
+                # load kwargs value
+                LOAD_FAST, kwargs_index & 0xFF, kwargs_index >> 8,
+                # load self
+                LOAD_CONST, constindex & 0xFF, constindex >> 8,
+                # set attribute
+                STORE_ATTR, namesindex & 0xFF, namesindex >> 8
+            ]
+
+        # set varargs in self attributes
+        if varargs is not None:
+            namesindex += 1
+            newnames.append(varargs)
+            newcode += [
+                # load varargs value
+                LOAD_FAST, len_args & 0xFF, len_args >> 8,
+                # load self
+                LOAD_CONST, constindex & 0xFF, constindex >> 8,
+                # set attribute
+                STORE_ATTR, namesindex & 0xFF, namesindex >> 8
+            ]
+
+        # load self.execute
+        constindex += 1
+        newcode += [LOAD_CONST, constindex & 0xFF, constindex >> 8]
+        newconsts.append(self.execute)  # add self in consts
+
+        # finally return call to function
+        newcode += [CALL_FUNCTION, 0, 0, RETURN_VALUE]
+
+        # and convert code instructions to string
+        newcodestring = "".join(map(chr, newcode))
+
+        co = function.func_code
+
+        codeobj = CodeType(
+                co.co_argcount, co.co_nlocals, co.co_stacksize,
+                co.co_flags, newcodestring, tuple(newconsts), tuple(newnames),
+                tuple(newvarnames), co.co_filename, co.co_name,
+                co.co_firstlineno, co.co_lnotab, co.co_freevars,
+                co.co_cellvars
+        )
+
+        interception_function = FunctionType(
+                codeobj, joinpoint.func_globals, joinpoint.func_name,
+                joinpoint.func_defaults, joinpoint.func_closure
+        )
+
+        # update wrapping assignments
+        for wrapper_assignment in WRAPPER_ASSIGNMENTS:
+            try:
+                value = getattr(joinpoint, wrapper_assignment)
+            except AttributeError:
+                pass
+            else:
+                setattr(interception_function, wrapper_assignment, value)
 
         # get interception_function
         interception, intercepted = _apply_interception(
-            joinpoint, interception_function)
-
-        # and bind it to the interception_function
-        interception.func_globals['advicesexecutor'] = self
+            joinpoint=joinpoint, interception_function=interception_function)
 
         self.intercepted = interception
 

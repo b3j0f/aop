@@ -87,7 +87,7 @@ class WeaveTest(TestCase):
 
     def test_function(self):
 
-        def f():
+        def f(*args):
             pass
 
         weave(
