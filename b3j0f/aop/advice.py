@@ -508,16 +508,12 @@ def _weave(
 
     # if weaving has to be done
     if isroutine(joinpoint) and (pointcut is None or pointcut(joinpoint)):
-
         # get joinpoint interception function
         interception_function = get_function(joinpoint)
-
         # does not handle not python functions
         if interception_function is not None:
-
             # intercept joinpoint if not intercepted
             if not is_intercepted(joinpoint):
-
                 interception_function = pointcut_application(
                     joinpoint=joinpoint, function=interception_function)
             # add advices to the interception function

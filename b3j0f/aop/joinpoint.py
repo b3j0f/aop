@@ -97,16 +97,17 @@ def _apply_interception(joinpoint, interception_function, _globals=None):
         module = getmodule(joinpoint)
         found = False  # check for found function
 
-        # update all references by value
-        for name, member in getmembers(
-                module, lambda member: member is joinpoint):
-            setattr(module, name, interception_function)
-            found = True
+        if module is not None:
+            # update all references by value
+            for name, member in getmembers(
+                    module, lambda member: member is joinpoint):
+                setattr(module, name, interception_function)
+                found = True
 
-        if not found:  # raise Exception if not found
-            raise JoinpointError(
-                "Impossible to weave on not modifiable function %s. \
-                Must be contained in module %s" % (joinpoint, module))
+            if not found:  # raise Exception if not found
+                raise JoinpointError(
+                    "Impossible to weave on not modifiable function {0}. \
+                    Must be contained in module {1}".format(joinpoint, module))
 
     else:  # update code with interception code
         joinpoint_function = get_function(joinpoint)
@@ -161,7 +162,8 @@ def _unapply_interception(joinpoint):
         if not found:
             raise JoinpointError(
                 "Impossible to unapply interception on not modifiable element \
-                %s. Must be contained in module %s" % (joinpoint, module))
+                {0}. Must be contained in module {1}".format(
+                    joinpoint, module))
 
     else:
         # update old code on joinpoint
