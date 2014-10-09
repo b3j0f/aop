@@ -48,7 +48,7 @@ def get_function(joinpoint):
 
     # if joinpoint is a method, get embedded function
     if ismethod(joinpoint):
-        result = joinpoint.im_func
+        result = joinpoint.__func__
 
     # if joinpoint is a function, result is the joinpoint
     elif isfunction(joinpoint):
@@ -123,13 +123,13 @@ def _apply_interception(joinpoint, interception_function, _globals=None):
     interception_function = get_function(interception)
 
     setattr(interception_function, _INTERCEPTED, intercepted)
-    interception_function.func_globals[_INTERCEPTED] = intercepted
+    interception_function.__globals__[_INTERCEPTED] = intercepted
 
     setattr(interception_function, _JOINPOINT, interception)
-    interception_function.func_globals[_JOINPOINT] = interception
+    interception_function.__globals__[_JOINPOINT] = interception
 
     if _globals is not None:
-        interception_function.func_globals.update(_globals)
+        interception_function.__globals__.update(_globals)
 
     return interception_function, intercepted
 

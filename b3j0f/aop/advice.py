@@ -203,7 +203,7 @@ class AdvicesExecutor(object):
         args = argspec.args
         varargs = argspec.varargs
         kwargs = argspec.keywords
-        co = function.func_code
+        co = function.__code__
         newvarnames = list(co.co_varnames)
         newnames = list(co.co_names)
 
@@ -328,7 +328,7 @@ class AdvicesExecutor(object):
             interception_function = FunctionType(codeobj, {})
         else:
             interception_function = FunctionType(
-                    codeobj, function.func_globals, function.func_name,
+                    codeobj, function.__globals__, function.func_name,
                     function.func_defaults, function.func_closure
             )
 

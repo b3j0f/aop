@@ -24,13 +24,13 @@ class GetFunctionTest(TestCase):
 
         A_function = get_function(A.method)
 
-        self.assertIs(A_function, A.method.im_func)
+        self.assertIs(A_function, A.method.__func__)
 
         a = A()
 
         a_function = get_function(a.method)
 
-        self.assertIs(a_function, a.method.im_func)
+        self.assertIs(a_function, a.method.__func__)
         self.assertIs(A_function, a_function)
 
     def test_function(self):
@@ -50,7 +50,7 @@ class ApplyInterceptionTest(TestCase):
             def function():
                 pass
 
-        func_code = function.__code__
+        __code__ = function.__code__
 
         self.assertFalse(is_intercepted(function), 'check joinpoint')
         self.assertIs(get_intercepted(min), None)
@@ -64,14 +64,14 @@ class ApplyInterceptionTest(TestCase):
         self.assertIs(interception, function, 'check update')
         self.assertIs(get_intercepted(function), intercepted)
         self.assertTrue(is_intercepted(function), 'check joinpoint')
-        self.assertIsNot(interception.__code__, func_code, 'check __code__')
-        self.assertIs(intercepted.__code__, func_code, 'check __code__')
+        self.assertIsNot(interception.__code__, __code__, 'check __code__')
+        self.assertIs(intercepted.__code__, __code__, 'check __code__')
 
         _unapply_interception(function)
 
         self.assertFalse(is_intercepted(function), 'check is jointpoint')
         self.assertIs(interception, function, 'check update')
-        self.assertIs(function.__code__, func_code, 'check update')
+        self.assertIs(function.__code__, __code__, 'check update')
         self.assertIsNone(get_intercepted(function))
 
     def test_method(self):
