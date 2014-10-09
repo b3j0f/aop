@@ -59,6 +59,9 @@ def get_function(joinpoint):
         constructor = getattr(joinpoint, '__init__', joinpoint.__new__)
         result = get_function(constructor)
 
+    elif isbuiltin(joinpoint):
+        result = joinpoint
+
     # else get callable function
     else:
         call = joinpoint.__call__

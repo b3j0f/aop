@@ -15,7 +15,7 @@ class GetFunctionTest(TestCase):
     def test_builtin(self):
         _max = get_function(max)
 
-        self.assertIs(_max, None)
+        self.assertIs(_max, max)
 
     def test_method(self):
         class A:

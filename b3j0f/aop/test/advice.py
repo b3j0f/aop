@@ -65,6 +65,19 @@ class WeaveTest(TestCase):
         self.count += 1
         return advicesexecutor.execute()
 
+    def test_builtin(self):
+
+        weave(
+            joinpoint=range,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=range,
+            advices=self.advicesexecutor)
+
+        range(5)
+
+        self.assertEqual(self.count, 3)
+
     def test_method(self):
 
         class A():
@@ -87,6 +100,36 @@ class WeaveTest(TestCase):
 
     def test_function(self):
 
+        def f():
+            pass
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+        f()
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_args(self):
+
+        def f(a):
+            pass
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_varargs(self):
+
         def f(*args):
             pass
 
@@ -97,6 +140,66 @@ class WeaveTest(TestCase):
             joinpoint=f,
             advices=self.advicesexecutor)
         f()
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_args_varargs(self):
+
+        def f(a, **args):
+            pass
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_kwargs(self):
+
+        def f(**kwargs):
+            pass
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+        f()
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_args_kwargs(self):
+
+        def f(a, **args):
+            pass
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_args_varargs_kwargs(self):
+
+        def f(a, *args, **kwargs):
+            pass
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+        f(1)
 
         self.assertEqual(self.count, 3)
 
