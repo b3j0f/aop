@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from unittest import main
 
-from unittest import TestCase, main
-
+from b3j0f.utils.ut import UTCase
 from b3j0f.aop.joinpoint import is_intercepted, get_intercepted, \
     _apply_interception, get_function, _unapply_interception, get_joinpoint
+from b3j0f.utils.version import PY3
 
 from types import MethodType, FunctionType
 
+from functools import wraps
 
-class GetFunctionTest(TestCase):
+
+class GetFunctionTest(UTCase):
 
     def test_builtin(self):
         _max = get_function(max)
@@ -24,7 +27,9 @@ class GetFunctionTest(TestCase):
 
         A_function = get_function(A.method)
 
-        self.assertIs(A_function, A.method.__func__)
+        func = A.method if PY3 else A.method.__func__
+
+        self.assertIs(A_function, func)
 
         a = A()
 
@@ -43,7 +48,7 @@ class GetFunctionTest(TestCase):
         self.assertIs(a_function, function)
 
 
-class ApplyInterceptionTest(TestCase):
+class ApplyInterceptionTest(UTCase):
 
     def test_function(self, interception=None, function=None):
         if function is None:
@@ -53,7 +58,7 @@ class ApplyInterceptionTest(TestCase):
         __code__ = function.__code__
 
         self.assertFalse(is_intercepted(function), 'check joinpoint')
-        self.assertIs(get_intercepted(min), None)
+        self.assertIsNone(get_intercepted(min))
 
         if interception is None:
             interception, intercepted = _apply_interception(
@@ -84,11 +89,15 @@ class ApplyInterceptionTest(TestCase):
 
         interception, intercepted = _apply_interception(A.method, lambda: None)
 
+        joinpoint_type = FunctionType if PY3 else MethodType
         self.assertTrue(
-            isinstance(get_joinpoint(interception), MethodType), 'check type')
+            isinstance(get_joinpoint(interception), joinpoint_type), 'check type')
 
         self.assertTrue(is_intercepted(interception), 'check joinpoint')
-        self.assertIsNot(interception, A.method)  # TODO: check why false xD
+        if PY3:
+            self.assertIs(interception, A.method)
+        else:
+            self.assertIsNot(interception, A.method)
         self.assertIs(get_intercepted(A.method), intercepted)
 
         _unapply_interception(A.method)
@@ -124,8 +133,12 @@ class ApplyInterceptionTest(TestCase):
         self.assertFalse(is_intercepted(ApplyInterceptionTest))
         self.assertIsNone(get_intercepted(ApplyInterceptionTest))
 
+        freevar = 1
+
+        func = (lambda: freevar) if PY3 else lambda: None
+
         interception, intercepted = _apply_interception(
-            ApplyInterceptionTest, lambda: None)
+            ApplyInterceptionTest, func)
 
         self.assertTrue(isinstance(ApplyInterceptionTest, type))
 

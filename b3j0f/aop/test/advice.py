@@ -68,13 +68,13 @@ class WeaveTest(TestCase):
     def test_builtin(self):
 
         weave(
-            joinpoint=range,
+            joinpoint=min,
             advices=[self.advicesexecutor, self.advicesexecutor])
         weave(
-            joinpoint=range,
+            joinpoint=min,
             advices=self.advicesexecutor)
 
-        range(5)
+        min(5, 2)
 
         self.assertEqual(self.count, 3)
 

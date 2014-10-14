@@ -17,6 +17,8 @@ from collections import Iterable
 from b3j0f.aop.joinpoint import (get_intercepted, _apply_interception,
     _unapply_interception, is_intercepted, get_function)
 
+from b3j0f.utils.version import basestring, PY3
+
 # consts for interception loading
 LOAD_CONST = opmap['LOAD_CONST']
 LOAD_FAST = opmap['LOAD_FAST']
@@ -163,7 +165,7 @@ class AdvicesExecutor(object):
 
         try:
             # get next advice
-            advice = self._advices_iterator.next()
+            advice = next(self._advices_iterator)
 
         except StopIteration:  # if no advice can be applied
             # nonify _advices_iterator for next joinpoint call
@@ -314,22 +316,26 @@ class AdvicesExecutor(object):
         newcode += [CALL_FUNCTION, 0, 0, RETURN_VALUE]
 
         # and convert code instructions to string
-        newcodestring = "".join(map(chr, newcode))
+        newcodestring = bytes(newcode) if PY3 else "".join(map(chr, newcode))
 
-        codeobj = CodeType(
-                co.co_argcount, co.co_nlocals, co.co_stacksize,
-                co.co_flags, newcodestring, tuple(newconsts), tuple(newnames),
-                tuple(newvarnames), co.co_filename, co.co_name,
-                co.co_firstlineno, co.co_lnotab, co.co_freevars,
-                co.co_cellvars
-        )
+        vargs = [
+            co.co_argcount, co.co_nlocals, co.co_stacksize, co.co_flags,
+            newcodestring, tuple(newconsts), tuple(newnames),
+            tuple(newvarnames), co.co_filename, co.co_name, co.co_firstlineno,
+            co.co_lnotab, co.co_freevars, co.co_cellvars
+        ]
+
+        if PY3:
+            vargs.insert(1, co.co_kwonlyargcount)
+
+        codeobj = CodeType(*vargs)
 
         if function is None:
             interception_function = FunctionType(codeobj, {})
         else:
             interception_function = FunctionType(
-                    codeobj, function.__globals__, function.func_name,
-                    function.func_defaults, function.func_closure
+                    codeobj, function.__globals__, function.__name__,
+                    function.__defaults__, function.__closure__
             )
 
         # update wrapping assignments
@@ -412,6 +418,7 @@ def _namematcher(regex):
         joinpoint_name = getattr(joinpoint, '__name__', '')
         result = matcher.match(joinpoint_name)
         return result
+
     return match
 
 
@@ -477,7 +484,7 @@ def weave(
         pass
 
     # in case of str, use a name matcher
-    elif isinstance(pointcut, str):
+    elif isinstance(pointcut, basestring):
         pointcut = _namematcher(pointcut)
 
     else:
