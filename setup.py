@@ -18,7 +18,7 @@ import b3j0f.aop as package
 with open(join(_path, 'README')) as f:
     desc = f.read()
 
-dependencies = ['b3j0f.utils==0.1.0']
+dependencies = ['b3j0f.utils==0.2.0']
 
 setup(
     name=package.__name__,
