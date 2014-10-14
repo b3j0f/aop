@@ -10,7 +10,7 @@ from functools import wraps
 
 from opcode import opmap
 
-from types import CodeType, FunctionType
+from types import FunctionType
 
 from collections import Iterable
 
@@ -19,7 +19,10 @@ from b3j0f.aop.joinpoint import (get_intercepted, _apply_interception,
 
 from b3j0f.utils.version import basestring, PY3
 
+from time import time
+
 # consts for interception loading
+LOAD_GLOBAL = opmap['LOAD_GLOBAL']
 LOAD_CONST = opmap['LOAD_CONST']
 LOAD_FAST = opmap['LOAD_FAST']
 STORE_SUBSCR = opmap['STORE_SUBSCR']
@@ -205,10 +208,150 @@ class AdvicesExecutor(object):
         args = argspec.args
         varargs = argspec.varargs
         kwargs = argspec.keywords
-        co = function.__code__
-        newvarnames = list(co.co_varnames)
-        newnames = list(co.co_names)
+        name = joinpoint.__name__
 
+        #co = function.__code__
+        #newvarnames = list(co.co_varnames)
+        #newnames = list(co.co_names)
+
+        newcodestr = "def {0}(".format(name)
+        if args:
+            newcodestr = "".join((newcodestr, "{0}".format(args[0])))
+        for arg in args[1:]:
+            newcodestr = "".join((newcodestr, ", {0}".format(arg)))
+
+        if varargs is not None:
+            if args:
+                newcodestr = "".join((newcodestr, ", "))
+            newcodestr = "".join((newcodestr, "*{0}".format(varargs)))
+
+        if kwargs is not None:
+            if args or varargs is not None:
+                newcodestr = "".join((newcodestr, ", "))
+            newcodestr = "".join((newcodestr, "**{0}".format(kwargs)))
+
+        newcodestr = "".join((newcodestr, "):\n"))
+
+        # unique id which will be used for advicesexecutor and kwargs
+        generated_id = int(time())
+
+        # if kwargs is None
+        if kwargs is None and args:
+            kwargs = "kwargs_{0}".format(generated_id)  # generate a name
+            # initialize a new dict with args
+            newcodestr = "".join((newcodestr, "   {0} = {{\n".format(kwargs)))
+            for arg in args:
+                newcodestr = "".join(
+                    (newcodestr, "      '{0}': {0},\n".format(arg))
+                )
+            newcodestr = "".join((newcodestr, "   }\n"))
+        else:
+            # fill args in kwargs
+            for arg in args:
+                newcodestr = "".join(
+                    (newcodestr, "   {0}['{1}'] = {1}\n".format(kwargs, arg))
+                )
+
+        # advicesexecutor name
+        ae = "advicesexecutor_{0}".format(generated_id)
+
+        if varargs:
+            newcodestr = "".join(
+                (newcodestr, "   {0}.args = {1}\n".format(ae, varargs))
+            )
+
+        # set kwargs in advicesexecutor
+        if kwargs is not None:
+            newcodestr = "".join(
+                (newcodestr, "   {0}.kwargs = {1}\n".format(ae, kwargs))
+            )
+
+        # return advicesexecutor proceed result
+        proceed = "proceed_{0}".format(generated_id)
+        newcodestr = "".join(
+            (newcodestr, "   return {0}()\n".format(proceed))
+        )
+
+        # compile newcodestr
+        code = compile(newcodestr, '<string>', 'single')
+
+        _globals = {}
+
+        # define the code with the new function
+        exec(code, _globals)
+
+        # get new code
+        newco = _globals[name].__code__
+        # get new consts list
+        newconsts = list(newco.co_consts)
+
+        if PY3:
+            newcode = list(newco.co_code)
+        else:
+            newcode = map(ord, newco.co_code)
+
+        consts_values = {ae: self, proceed: self.execute}
+
+        # change LOAD_GLOBAL to LOAD_CONST
+        index = 0
+        newcodelen = len(newcode)
+        while index < newcodelen:
+            if newcode[index] == LOAD_GLOBAL:
+                oparg = newcode[index + 1] + (newcode[index + 2] << 8)
+                name = newco.co_names[oparg]
+                if name in consts_values:
+                    pos = len(newconsts)
+                    newconsts.append(consts_values[name])
+                    newcode[index] = LOAD_CONST
+                    newcode[index + 1] = pos & 0xFF
+                    newcode[index + 2] = pos >> 8
+                    if name == proceed:
+                        break  # stop when proceed is encountered
+            index += 1
+
+        # get code string
+        codestr = bytes(newcode) if PY3 else "".join(map(chr, newcode))
+
+        # get vargs
+        vargs = [
+            newco.co_argcount, newco.co_nlocals, newco.co_stacksize,
+            newco.co_flags, codestr, tuple(newconsts), newco.co_names,
+            newco.co_varnames, newco.co_filename, newco.co_name,
+            newco.co_firstlineno, newco.co_lnotab, newco.co_freevars,
+            newco.co_cellvars
+        ]
+        if PY3:
+            vargs.insert(1, newco.co_kwonlyargcount)
+
+        # instanciate a new code object
+        codeobj = type(newco)(*vargs)
+        # instanciate a new function
+        if function is None:
+            interception_function = FunctionType(codeobj, {})
+        else:
+            interception_function = type(function)(
+                codeobj, function.__globals__, function.__name__,
+                function.__defaults__, function.__closure__
+            )
+
+        # update wrapping assignments
+        for wrapper_assignment in WRAPPER_ASSIGNMENTS:
+            try:
+                value = getattr(joinpoint, wrapper_assignment)
+            except AttributeError:
+                pass
+            else:
+                setattr(interception_function, wrapper_assignment, value)
+
+        # get interception_function
+        interception, intercepted = _apply_interception(
+            joinpoint=joinpoint, interception_function=interception_function)
+
+        self.intercepted = interception
+
+        return interception
+
+        """
         # new code to apply
         newcode = []
         # consts to use
@@ -354,6 +497,7 @@ class AdvicesExecutor(object):
         self.intercepted = interception
 
         return interception
+        """
 
 
 def _add_advices(joinpoint, advices):
