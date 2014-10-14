@@ -1,2 +1,1 @@
 recursive-include docs *.rst
-recursive-include b3j0f *.py

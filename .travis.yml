@@ -8,7 +8,7 @@ python:
 # command to install dependencies
 install:
   - "pip install setuptools"
-  - "pip install b3j0f.utils==0.2.0"
+  - "pip install b3j0f.utils==0.3"
   - "python setup.py install"
 # command to run tests
 script: python setup.py test
