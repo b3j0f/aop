@@ -30,14 +30,14 @@ setup(
     author_email="mrb3j0f@gmail.com",
     description="Python Aspect Oriented Programming",
     long_description=desc,
-    url='https://github.com/mrbozzo/aspects/',
+    url='https://github.com/mrbozzo/aop/',
     license='MIT License',
     classifiers=[
         "Development Status :: 1 - Planning",
-        "License :: MIT",
+        "License :: OSI Approved :: MIT License",
         "Natural Language :: French",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python",
         "Topic :: Communications",
     ],
     test_suite='b3j0f'
