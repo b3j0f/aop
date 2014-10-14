@@ -15,7 +15,7 @@ path.append(_path)
 import b3j0f.aop as package
 
 # get long description
-with open(join(_path, 'README.md')) as f:
+with open(join(_path, 'README.rst')) as f:
     desc = f.read()
 
 dependencies = ['b3j0f.utils==0.1.0']
