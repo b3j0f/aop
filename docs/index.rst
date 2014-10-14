@@ -58,7 +58,8 @@ Improvements
 Limitations
 -----------
 
-- do not weave on builtin classes
+- does not weave on builtin classes
+- does not weave on classes on python versions >= 3.3
 
 State of the art
 ----------------
