@@ -3,8 +3,13 @@ b3j0f.aop: Aspect Oriented Programming for Python
 
 This library aims to improve python aspects oriented programming efficiency among several existing library.
 
-Improvements:
-=============
+Installation
+------------
+
+pip install b3j0f.aop
+
+Improvements
+------------
 
 1. Free and unlimited access: no limit to idea and to knowledge sharing with the license MIT.
 
@@ -33,13 +38,13 @@ Improvements:
 
    - speed execution
 
-Limitations:
-============
+Limitations
+-----------
 
 - do not weave on builtin classes
 
-State of the art:
-=================
+State of the art
+----------------
 
 Related to improving criteria points (1. Free and unlimited access, etc.), a state of the art is provided here.
 
@@ -60,7 +65,7 @@ Related to improving criteria points (1. Free and unlimited access, etc.), a sta
 +------------+----------------------------+----------+-----------+-----+-----------+---------------+
 
 pyaspects
-=========
+#########
 
 - Not functional approach: Aspect class definition.
 - Side effects: Not close to python API.
@@ -70,14 +75,14 @@ pyaspects
 - limited in weave filtering.
 
 aspects
-=======
+#######
 
 - open-source and use limitations: LGPL 2.1.
 - more difficulties to understand code with no respect of the AOP vocabulary, packaged into one module and more than 600 files.
 - limited in weave filtering.
 
 aspect
-======
+######
 
 + invert the AOP in decorating advices with joinpoint instead of weaving advices on joinpoint.
 + open-source and no use limitations: BSD.
@@ -87,10 +92,10 @@ aspect
 - limited in weave filtering.
 
 spring
-======
+######
 
 pytilities
-==========
+##########
 
 + Very complex and full library for doing aspects and other things.
 
