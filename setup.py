@@ -30,6 +30,7 @@ setup(
     author_email="mrb3j0f@gmail.com",
     description="Python Aspect Oriented Programming",
     long_description=desc,
+    include_package_data=True,
     url='https://github.com/mrbozzo/aop/',
     license='MIT License',
     classifiers=[
