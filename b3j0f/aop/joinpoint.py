@@ -23,8 +23,6 @@ _INTERCEPTED = '_intercepted'
 #: attribute which binds an interception function to its parent joinpoint
 _JOINPOINT = '_joinpoint'
 
-_INTERCEPTORS = '_interceptors'  #: attribute name for interceptors in __dict__
-
 
 class JoinpointError(Exception):
     """
@@ -32,87 +30,6 @@ class JoinpointError(Exception):
     """
 
     pass
-
-__DICT__ = '__dict__'  #: __dict__ joinpoint attribute name
-__SELF__ = '__self__'  #: __self__ class instance attribute name
-
-
-STATIC__DICTS__ = {}  #: dictionary of __dict__ by static objects
-
-
-def get_interceptors(joinpoint):
-    """
-    Get interceptors from input joinpoint.
-
-    :param callable joinpoint: joinpoint from where get interceptors
-
-    :return: list of interceptors.
-    :rtype: list
-    """
-
-    result = []
-
-    # try to find interceptors into joinpoint such as an instance
-    if hasattr(joinpoint, __SELF__):
-        # self __dict__ which may contain interceptors
-        __dict__ = None
-        instance = joinpoint.__self__
-        # search among self __dict__ if _INTERCEPTORS exists
-        if hasattr(instance, __DICT__):
-            __dict__ = instance.__dict__
-        # if __dict__ does not exist in __self__, search in STATIC__DICTS__
-        elif instance in STATIC__DICTS__:
-            __dict__ = STATIC__DICTS__[instance]
-        # if __dict__ has been founded, try to get value from key joinpoint
-        if __dict__ is not None and joinpoint in __dict__:
-            interceptors = __dict__[joinpoint]
-            # if interceptors exists, add them to result
-            if _INTERCEPTORS in interceptors:
-                result += interceptors[_INTERCEPTORS]
-
-    # try to find interceptors into joinpoint such as an type
-    # joinpoint __dict__ which may contain interceptors
-    __dict__ = None
-
-    # try to get __dict__ from joinpoint
-    if hasattr(joinpoint, __DICT__):
-        __dict__ = joinpoint.__dict__
-    elif joinpoint in STATIC__DICTS__:  # or from STATIC_DICTS__[joinpoint]
-        __dict__ = STATIC__DICTS__[joinpoint]
-    if __dict__ is not None and _INTERCEPTORS in __dict__:
-        result += __dict__[_INTERCEPTORS]
-
-    return result
-
-
-def add_interceptors(joinpoint, **interceptors):
-    """
-    Add interceptors in joinpoint.
-    """
-
-    # if joinpoint is bound to an instance
-    if hasattr(joinpoint, __SELF__):
-        __dict__ = None
-        instance = joinpoint.__self__
-        # if instance has a dict attribute
-        if hasattr(instance, __DICT__):
-            __dict__ = instance.__dict__
-        else:  # get __dict__ from STATIC__DICTS__
-            __dict__ = STATIC__DICTS__.setdefault(instance, {})
-
-    # if joinpoint has a __dict__ attribute
-    elif hasattr(joinpoint, __DICT__):
-        __dict__ = joinpoint.__dict__
-
-    # if joinpoint is in STATIC__DICTS__
-    elif joinpoint in STATIC__DICTS__:
-        __dict__ = STATIC__DICTS__[joinpoint]
-
-    # if a __dict__ has been founded
-    if __dict__ is not None:
-        # add input interceptors to local interceptors
-        local_interceptors = __dict__.setdefault(joinpoint, [])
-        local_interceptors += interceptors
 
 
 def get_function(joinpoint):
@@ -145,7 +62,11 @@ def get_function(joinpoint):
 
     # if joinpoint is a class, result is the constructor function
     elif isclass(joinpoint):
-        constructor = getattr(joinpoint, '__init__', joinpoint.__new__)
+        constructor = getattr(
+            joinpoint, '__init__', getattr(
+                joinpoint, '__new__', None
+            )
+        )
         result = get_function(constructor)
 
     elif isbuiltin(joinpoint):

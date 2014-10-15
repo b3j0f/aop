@@ -4,13 +4,13 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
-from b3j0f.aop.joinpoint import is_intercepted, get_intercepted, \
-    _apply_interception, get_function, _unapply_interception, get_joinpoint
+from b3j0f.aop.joinpoint import (
+    is_intercepted, get_intercepted, _apply_interception, get_function,
+    _unapply_interception, get_joinpoint
+)
 from b3j0f.utils.version import PY3
 
 from types import MethodType, FunctionType
-
-from functools import wraps
 
 
 class GetFunctionTest(UTCase):
@@ -91,13 +91,13 @@ class ApplyInterceptionTest(UTCase):
 
         joinpoint_type = FunctionType if PY3 else MethodType
         self.assertTrue(
-            isinstance(get_joinpoint(interception), joinpoint_type), 'check type')
+            isinstance(get_joinpoint(interception), joinpoint_type))
 
         self.assertTrue(is_intercepted(interception), 'check joinpoint')
         if PY3:
             self.assertIs(interception, A.method)
         else:
-            self.assertIsNot(interception, A.method)
+            self.assertIs(interception, A.method.__func__)
         self.assertIs(get_intercepted(A.method), intercepted)
 
         _unapply_interception(A.method)

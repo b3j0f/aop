@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from unittest import TestCase, main
+from unittest import main
 
-from b3j0f.aop.advice import AdvicesExecutor, Advice, weave
+from b3j0f.utils.ut import UTCase
+from b3j0f.aop.advice import AdvicesExecutor, Advice, weave, unweave, weave_on
 
 
-class AdvicesExecutionTest(TestCase):
+class AdvicesExecutionTest(UTCase):
 
     def setUp(self):
 
@@ -36,7 +37,7 @@ class AdvicesExecutionTest(TestCase):
         self.assertEqual(result, (2, 3), 'check AdvicesExecutor proceed')
 
 
-class AdviceTest(TestCase):
+class AdviceTest(UTCase):
 
     def setUp(self):
 
@@ -51,7 +52,7 @@ class AdviceTest(TestCase):
         self.assertEqual(self.advice.enable, True)
 
 
-class WeaveTest(TestCase):
+class WeaveTest(UTCase):
 
     def setUp(self):
 
@@ -70,9 +71,13 @@ class WeaveTest(TestCase):
         weave(
             joinpoint=min,
             advices=[self.advicesexecutor, self.advicesexecutor])
-        weave(
-            joinpoint=min,
-            advices=self.advicesexecutor)
+        weave(joinpoint=min, advices=self.advicesexecutor)
+
+        min(5, 2)
+
+        self.assertEqual(self.count, 3)
+
+        unweave(min)
 
         min(5, 2)
 
@@ -98,6 +103,14 @@ class WeaveTest(TestCase):
 
         self.assertEqual(self.count, 4)
 
+        unweave(A.a)
+        unweave(A)
+
+        A()
+        a.a()
+
+        self.assertEqual(self.count, 4)
+
     def test_function(self):
 
         def f():
@@ -109,6 +122,12 @@ class WeaveTest(TestCase):
         weave(
             joinpoint=f,
             advices=self.advicesexecutor)
+        f()
+
+        self.assertEqual(self.count, 3)
+
+        unweave(f)
+
         f()
 
         self.assertEqual(self.count, 3)
@@ -128,6 +147,12 @@ class WeaveTest(TestCase):
 
         self.assertEqual(self.count, 3)
 
+        unweave(f)
+
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
     def test_function_varargs(self):
 
         def f(*args):
@@ -143,6 +168,12 @@ class WeaveTest(TestCase):
 
         self.assertEqual(self.count, 3)
 
+        unweave(f)
+
+        f()
+
+        self.assertEqual(self.count, 3)
+
     def test_function_args_varargs(self):
 
         def f(a, **args):
@@ -154,6 +185,13 @@ class WeaveTest(TestCase):
         weave(
             joinpoint=f,
             advices=self.advicesexecutor)
+
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+        unweave(f)
+
         f(1)
 
         self.assertEqual(self.count, 3)
@@ -173,6 +211,12 @@ class WeaveTest(TestCase):
 
         self.assertEqual(self.count, 3)
 
+        unweave(f)
+
+        f()
+
+        self.assertEqual(self.count, 3)
+
     def test_function_args_kwargs(self):
 
         def f(a, **args):
@@ -188,6 +232,12 @@ class WeaveTest(TestCase):
 
         self.assertEqual(self.count, 3)
 
+        unweave(f)
+
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
     def test_function_args_varargs_kwargs(self):
 
         def f(a, *args, **kwargs):
@@ -199,6 +249,12 @@ class WeaveTest(TestCase):
         weave(
             joinpoint=f,
             advices=self.advicesexecutor)
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+        unweave(f)
+
         f(1)
 
         self.assertEqual(self.count, 3)
@@ -222,6 +278,199 @@ class WeaveTest(TestCase):
         weave(
             joinpoint=cls.C,
             advices=[self.advicesexecutor, self.advicesexecutor])
+
+        cls()
+        cls.B()
+        cls.C()
+
+        self.assertEqual(self.count, 6)
+
+        unweave(cls)
+
+        cls()
+
+        self.assertEqual(self.count, 6)
+
+        unweave(cls.B)
+
+        cls.B()
+
+        self.assertEqual(self.count, 6)
+
+        unweave(cls.C)
+
+        cls.C()
+
+        self.assertEqual(self.count, 6)
+
+    def test_class(self):
+
+        class A(object):
+
+            class B(object):
+                def __init__(self):
+                    pass
+
+            class C(object):
+                pass
+
+            def __init__(self):
+                pass
+
+        self._assert_class(A)
+
+    def test_namespace(self):
+
+        class A:
+
+            class B:
+                def __init__(self):
+                    pass
+
+            class C:
+                pass
+
+            def __init__(self):
+                pass
+
+        self._assert_class(A)
+
+
+class WeaveOnTest(UTCase):
+
+    def setUp(self):
+
+        self.count = 0
+
+    def advicesexecutor(self, advicesexecutor):
+        """
+        Default interceptor which increments self count
+        """
+
+        self.count += 1
+        return advicesexecutor.execute()
+
+    def test_builtin(self):
+
+        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(min)
+        weave_on(advices=self.advicesexecutor)(min)
+
+        min(5, 2)
+
+        self.assertEqual(self.count, 3)
+
+        unweave(min)
+
+        min(5, 2)
+
+        self.assertEqual(self.count, 3)
+
+    def test_method(self):
+
+        @weave_on(self.advicesexecutor, pointcut='__init__')
+        class A():
+
+            @weave_on(self.advicesexecutor)
+            def __init__(self):
+                pass
+
+            @weave_on([self.advicesexecutor, self.advicesexecutor])
+            def a(self):
+                pass
+
+        a = A()
+        a.a()
+
+        self.assertEqual(self.count, 4)
+
+    def test_function(self):
+
+        @weave_on(self.advicesexecutor)
+        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        def f():
+            pass
+
+        f()
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_args(self):
+
+        @weave_on(self.advicesexecutor)
+        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        def f(a):
+            pass
+
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_varargs(self):
+
+        @weave_on(self.advicesexecutor)
+        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        def f(*args):
+            pass
+
+        f()
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_args_varargs(self):
+
+        @weave_on(self.advicesexecutor)
+        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        def f(a, **args):
+            pass
+
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_kwargs(self):
+
+        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        @weave_on(self.advicesexecutor)
+        def f(**kwargs):
+            pass
+
+        f()
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_args_kwargs(self):
+
+        @weave_on(self.advicesexecutor)
+        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        def f(a, **args):
+            pass
+
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+    def test_function_args_varargs_kwargs(self):
+
+        @weave_on(self.advicesexecutor)
+        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        def f(a, *args, **kwargs):
+            pass
+
+        f(1)
+
+        self.assertEqual(self.count, 3)
+
+    def _assert_class(self, cls):
+        """
+        Run assertion tests on input cls
+        """
+
+        weave_on(advices=self.advicesexecutor, pointcut='__init__')(cls)
+        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(cls)
+        weave_on(advices=self.advicesexecutor, pointcut='__init__')(cls.B)
+        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(cls.B)
+        weave_on(advices=self.advicesexecutor, pointcut='__init__')(cls.C)
+        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(cls.C)
 
         cls()
         cls.B()
@@ -260,7 +509,6 @@ class WeaveTest(TestCase):
                 pass
 
         self._assert_class(A)
-
 
 if __name__ == '__main__':
     main()

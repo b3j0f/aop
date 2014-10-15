@@ -14,9 +14,10 @@ from types import FunctionType
 
 from collections import Iterable
 
-from b3j0f.aop.joinpoint import (get_intercepted, _apply_interception,
-    _unapply_interception, is_intercepted, get_function)
-
+from b3j0f.aop.joinpoint import (
+    get_intercepted, _apply_interception,
+    _unapply_interception, is_intercepted, get_function
+)
 from b3j0f.utils.version import basestring, PY3
 
 from time import time
@@ -24,14 +25,6 @@ from time import time
 # consts for interception loading
 LOAD_GLOBAL = opmap['LOAD_GLOBAL']
 LOAD_CONST = opmap['LOAD_CONST']
-LOAD_FAST = opmap['LOAD_FAST']
-STORE_SUBSCR = opmap['STORE_SUBSCR']
-RETURN_VALUE = opmap['RETURN_VALUE']
-CALL_FUNCTION = opmap['CALL_FUNCTION']
-BUILD_MAP = opmap['BUILD_MAP']
-STORE_FAST = opmap['STORE_FAST']
-STORE_MAP = opmap['STORE_MAP']
-STORE_ATTR = opmap['STORE_ATTR']
 
 WRAPPER_ASSIGNMENTS = ('__doc__', '__annotations__')
 
@@ -361,25 +354,35 @@ def _add_advices(joinpoint, advices):
     :param bool ordered: ensure advices to add will be done in input order
     """
 
-    _advices = getattr(joinpoint, _ADVICES, [])
+    joinpoint_advices = getattr(joinpoint, _ADVICES, [])
 
     for advice in advices:
-        _advices.append(advice)
+        joinpoint_advices.append(advice)
 
-    setattr(joinpoint, _ADVICES, _advices)
+    setattr(joinpoint, _ADVICES, joinpoint_advices)
 
 
-def _remove_advices(joinpoint, *advices):
+def _remove_advices(joinpoint, advices):
     """
     Remove advices from input joinpoint.
+
+    :param advices: advices to remove. If None, remove all advices.
     """
 
-    _advices = getattr(joinpoint, _ADVICES, ())
+    joinpoint_advices = getattr(joinpoint, _ADVICES, [])
 
-    if _advices:
-        _advices = (advice for advice in _advices if advice not in advices)
+    if advices is not None:
+        joinpoint_advices = list(
+            advice for advice in joinpoint_advices if advice not in advices
+        )
+    else:
+        joinpoint_advices = ()
 
-    setattr(joinpoint, _ADVICES, _advices)
+    if joinpoint_advices:  # update joinpoint advices
+        setattr(joinpoint, _ADVICES, joinpoint_advices)
+    else:  # free joinpoint advices if necessary
+        delattr(joinpoint, _ADVICES)
+        _unapply_interception(joinpoint)
 
 
 def get_advices(element):
@@ -535,26 +538,91 @@ def _weave(
                 pointcut_application=pointcut_application)
 
 
-def unweave(joinpoint, *advices):
+def unweave(
+    joinpoint, advices=None, pointcut=None, depth=1, public=False,
+):
     """
-    Unweave advices from input joinpoint and returns removed advice ids.
+    Unweave advices on joinpoint with input pointcut.
 
-    Input advices are of type Advice or UUID.
+    :param joinpoint: joinpoint from where checking pointcut and weaving
+        advices.
+    :type joinpoint: callable
+
+    :param pointcut: condition for weaving advices on joinpointe.
+        The condition depends on its type.
+    :type pointcut:
+        - NoneType: advices are weaved on joinpoint.
+        - str: joinpoint name is compared to pointcut regex.
+        - function: called with joinpoint in parameter, if True, advices will
+            be weaved on joinpoint.
+
+    :param depth: class weaving depthing
+    :type depth: int
+
+    :param public: (default True) weave only on public members
+    :type public: bool
+
+    :return: the intercepted functions created from input joinpoint.
     """
 
-    uuids_advices = (adv.uuid for adv in advices if isinstance(adv, Advice))
-    uuids_advices = (uid for uid in advices if isinstance(uid, uuid.UUID))
+    # ensure advices is a list if not None
+    if advices is not None:
 
-    advice_ids = uuids_advices + uuids_advices
+        # initialize advices
+        if not isinstance(advices, Iterable):
+            advices = [advices]
 
-    _remove_advices(joinpoint, *advice_ids)
+        elif not isinstance(advices, list):
+            advices = list(advices)
 
-    advices = get_advices(joinpoint)
+    # initialize pointcut
 
-    if not advices:
-        _unapply_interception(joinpoint)
+    # do nothing if pointcut is None or is callable
+    if pointcut is None or callable(pointcut):
+        pass
 
-    return advice_ids
+    # in case of str, use a name matcher
+    elif isinstance(pointcut, basestring):
+        pointcut = _namematcher(pointcut)
+
+    else:
+        error_msg = "Wrong pointcut to check weaving on {0}.".format(joinpoint)
+        advice_msg = "Must be None, or be a str or a function/method."
+        right_msg = "Not {1}".format(type(pointcut))
+
+        raise AdviceError(
+            "{0} {1} {2}".format(error_msg, advice_msg, right_msg))
+
+    _unweave(
+        joinpoint=joinpoint, advices=advices, pointcut=pointcut, depth=depth,
+        depth_predicate=_publicmembers if public else callable)
+
+
+def _unweave(
+    joinpoint, advices, pointcut, depth, depth_predicate,
+):
+    """
+    Unweave deeply advices in joinpoint.
+    """
+
+    # if weaving has to be done
+    if isroutine(joinpoint) and (pointcut is None or pointcut(joinpoint)):
+        # get joinpoint interception function
+        interception_function = get_function(joinpoint)
+        # does not handle not python functions
+        if interception_function is not None:
+            # intercept joinpoint if not intercepted
+            if is_intercepted(joinpoint):
+            # remove advices to the interception function
+                _remove_advices(
+                    joinpoint=interception_function, advices=advices)
+
+    # search inside the joinpoint
+    elif depth > 0:  # for an object or a class, weave on methods
+        for name, member in getmembers(joinpoint, depth_predicate):
+            _unweave(
+                joinpoint=member, advices=advices, pointcut=pointcut,
+                depth=depth - 1, depth_predicate=depth_predicate)
 
 
 def weave_on(advices, pointcut=None, depth=1):
@@ -566,6 +634,7 @@ def weave_on(advices, pointcut=None, depth=1):
         weave(
             joinpoint=joinpoint, advices=advices, pointcut=pointcut,
             depth=depth)
+        return joinpoint
 
     return _weave
 
@@ -639,13 +708,27 @@ class Advice(object):
 
     @staticmethod
     def weave(joinpoint, advices, pointcut=None, depth=1, public=False):
+        """
+        Weave advices such as Advice objects.
+        """
 
-        advices = [advice if isinstance(advice, Advice) else Advice(advice)
-            for advice in advices]
+        advices = (advice if isinstance(advice, Advice) else Advice(advice)
+            for advice in advices)
 
         weave(
             joinpoint=joinpoint, advices=advices, pointcut=pointcut,
             depth=depth, public=public)
+
+    @staticmethod
+    def unweave(joinpoint, *advices):
+        """
+        Unweave advices from input joinpoint.
+        """
+
+        advices = (advice if isinstance(advice, Advice) else Advice(advice)
+            for advice in advices)
+
+        unweave(joinpoint=joinpoint, *advices)
 
     def __call__(self, advicesexecutor):
 
