@@ -4,7 +4,7 @@ from re import compile as re_compile
 
 from uuid import uuid4 as uuid
 
-from inspect import getmembers, isroutine, getargspec
+from inspect import getmembers, isroutine, getargspec, isbuiltin
 
 from functools import wraps
 
@@ -319,7 +319,7 @@ class AdvicesExecutor(object):
         # instanciate a new code object
         codeobj = type(newco)(*vargs)
         # instanciate a new function
-        if function is None:
+        if function is None or isbuiltin(function):
             interception_function = FunctionType(codeobj, {})
         else:
             interception_function = type(function)(
