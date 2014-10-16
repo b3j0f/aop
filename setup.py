@@ -12,11 +12,11 @@ _path = dirname(abspath(__file__))
 with open(join(_path, 'README')) as f:
     desc = f.read()
 
-dependencies = ['b3j0f.utils==0.5.1']
+dependencies = ['b3j0f.utils']
 
 setup(
     name='b3j0f.aop',
-    version='0.4.1',
+    version='0.4.2',
     install_requires=dependencies,
     packages=find_packages(where='.', exclude=['test.*', '*.test.*']),
     author="b3j0f",
