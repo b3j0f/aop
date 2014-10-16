@@ -16,7 +16,7 @@ dependencies = ['b3j0f.utils==0.5.1']
 
 setup(
     name='b3j0f.aop',
-    version='0.4.0',
+    version='0.4.1',
     install_requires=dependencies,
     packages=find_packages(where='.', exclude=['test.*', '*.test.*']),
     author="b3j0f",
