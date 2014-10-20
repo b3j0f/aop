@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+"""
+Provides functions in order to weave/unweave/get advices from callable objects.
+"""
+
 from re import compile as re_compile
 
 from uuid import uuid4 as uuid
@@ -14,13 +18,24 @@ from types import FunctionType
 
 from collections import Iterable
 
+from time import time
+
+try:
+    from threading import Timer
+except ImportError:
+    from dummy_threading import Timer
+
 from b3j0f.aop.joinpoint import (
     get_intercepted, _apply_interception,
     _unapply_interception, is_intercepted, get_function
 )
 from b3j0f.utils.version import basestring, PY3
 
-from time import time
+__all__ = [
+    'AdviceError', 'AdvicesExecutor', 'get_advices',
+    'weave', 'unweave', 'weave_on',
+    'Advice'
+]
 
 # consts for interception loading
 LOAD_GLOBAL = opmap['LOAD_GLOBAL']
@@ -51,14 +66,31 @@ class AdvicesExecutor(object):
         - a shared context during interception such as a dictionary.
     """
 
+    #: attribute name for context execution
+    CONTEXT = 'context'
+
+    #: attribute name for interception joinpoint
+    CALLEE = 'callee'
+
+    #: attribute name for callee args
+    ARGS = 'args'
+
+    #: attribute name for callee kwargs
+    KWARGS = 'kwargs'
+
+    #: private attribute name for intercepted element
+    _INTERCEPTED = '_intercepted'
+
+    #: private attribute name for internal iterator for advices execution
+    _ADVICES_ITERATOR = '_advices_iterator'
+
+    #: private attribute name for advices
+    _ADVICES = '_advices'
+
     __slots__ = (
-        'context',  # context execution
-        'callee',  # interception joinpoint
-        'args',  # callee args
-        'kwargs',  # callee kwargs
-        '_intercepted',  # intercepted
-        '_advices_iterator',  # internal iterator for advices execution
-        '_advices')  # advices
+        CONTEXT, CALLEE, ARGS, KWARGS,
+        _INTERCEPTED, _ADVICES_ITERATOR, _ADVICES
+    )
 
     def __init__(
         self,
@@ -189,80 +221,78 @@ class AdvicesExecutor(object):
             function = get_function(joinpoint)
 
         try:
-            argspec = getargspec(function)
+            # get params from joinpoint
+            args, varargs, kwargs, _ = getargspec(function)
         except TypeError:
             # if function is not a python function, create one generic
             @wraps(joinpoint)
             def function(*args, **kwargs):
                 pass
+            # get params from joinpoint wrapper
+            args, varargs, kwargs, _ = getargspec(function)
 
         # get params from joinpoint
-        argspec = getargspec(function)
-        args = argspec.args
-        varargs = argspec.varargs
-        kwargs = argspec.keywords
         name = joinpoint.__name__
 
-        #co = function.__code__
-        #newvarnames = list(co.co_varnames)
-        #newnames = list(co.co_names)
+        # get join method for reducing concatenation time execution
+        join = "".join
 
-        newcodestr = "def {0}(".format(name)
+        newcodestr = "def %s(" % name
         if args:
-            newcodestr = "".join((newcodestr, "{0}".format(args[0])))
+            newcodestr = join((newcodestr, "%s" % args[0]))
         for arg in args[1:]:
-            newcodestr = "".join((newcodestr, ", {0}".format(arg)))
+            newcodestr = join((newcodestr, ", %s" % arg))
 
         if varargs is not None:
             if args:
-                newcodestr = "".join((newcodestr, ", "))
-            newcodestr = "".join((newcodestr, "*{0}".format(varargs)))
+                newcodestr = join((newcodestr, ", "))
+            newcodestr = join((newcodestr, "*%s" % varargs))
 
         if kwargs is not None:
             if args or varargs is not None:
-                newcodestr = "".join((newcodestr, ", "))
-            newcodestr = "".join((newcodestr, "**{0}".format(kwargs)))
+                newcodestr = join((newcodestr, ", "))
+            newcodestr = join((newcodestr, "**%s" % kwargs))
 
-        newcodestr = "".join((newcodestr, "):\n"))
+        newcodestr = join((newcodestr, "):\n"))
 
         # unique id which will be used for advicesexecutor and kwargs
         generated_id = int(time())
 
         # if kwargs is None
         if kwargs is None and args:
-            kwargs = "kwargs_{0}".format(generated_id)  # generate a name
+            kwargs = "kwargs_%s" % generated_id  # generate a name
             # initialize a new dict with args
-            newcodestr = "".join((newcodestr, "   {0} = {{\n".format(kwargs)))
+            newcodestr = join((newcodestr, "   %s = {\n" % kwargs))
             for arg in args:
-                newcodestr = "".join(
-                    (newcodestr, "      '{0}': {0},\n".format(arg))
+                newcodestr = join(
+                    (newcodestr, "      '%s': %s,\n" % (arg, arg))
                 )
-            newcodestr = "".join((newcodestr, "   }\n"))
+            newcodestr = join((newcodestr, "   }\n"))
         else:
             # fill args in kwargs
             for arg in args:
-                newcodestr = "".join(
-                    (newcodestr, "   {0}['{1}'] = {1}\n".format(kwargs, arg))
+                newcodestr = join(
+                    (newcodestr, "   %s['%s'] = %s\n" % (kwargs, arg, arg))
                 )
 
         # advicesexecutor name
-        ae = "advicesexecutor_{0}".format(generated_id)
+        ae = "advicesexecutor_%s" % generated_id
 
         if varargs:
-            newcodestr = "".join(
-                (newcodestr, "   {0}.args = {1}\n".format(ae, varargs))
+            newcodestr = join(
+                (newcodestr, "   %s.args = %s\n" % (ae, varargs))
             )
 
         # set kwargs in advicesexecutor
         if kwargs is not None:
-            newcodestr = "".join(
-                (newcodestr, "   {0}.kwargs = {1}\n".format(ae, kwargs))
+            newcodestr = join(
+                (newcodestr, "   %s.kwargs = %s\n" % (ae, kwargs))
             )
 
         # return advicesexecutor proceed result
-        proceed = "proceed_{0}".format(generated_id)
-        newcodestr = "".join(
-            (newcodestr, "   return {0}()\n".format(proceed))
+        proceed = "proceed_%s" % generated_id
+        newcodestr = join(
+            (newcodestr, "   return %s()\n" % proceed)
         )
 
         # compile newcodestr
@@ -303,7 +333,7 @@ class AdvicesExecutor(object):
             index += 1
 
         # get code string
-        codestr = bytes(newcode) if PY3 else "".join(map(chr, newcode))
+        codestr = bytes(newcode) if PY3 else join(map(chr, newcode))
 
         # get vargs
         vargs = [
@@ -429,15 +459,13 @@ def _publicmembers(joinpoint):
 
 def weave(
     joinpoint, advices, pointcut=None, depth=1, public=False,
-    pointcut_application=None
+    pointcut_application=None, ttl=None
 ):
     """
     Weave advices on joinpoint with input pointcut.
 
-    :param joinpoint: joinpoint from where checking pointcut and weaving
-        advices.
-    :type joinpoint: callable
-
+    :param callable joinpoint: joinpoint from where checking pointcut and
+        weaving advices.
     :param pointcut: condition for weaving advices on joinpointe.
         The condition depends on its type.
     :type pointcut:
@@ -445,20 +473,16 @@ def weave(
         - str: joinpoint name is compared to pointcut regex.
         - function: called with joinpoint in parameter, if True, advices will
             be weaved on joinpoint.
-
-    :param depth: class weaving depthing
-    :type depth: int
-
-    :param public: (default True) weave only on public members
-    :type public: bool
-
-    :param pointcut_application: routine which applies a pointcut when
+    :param int depth: class weaving depthing
+    :param bool public: (default True) weave only on public members
+    :param routine pointcut_application: routine which applies a pointcut when
         required. AdvicesExecutor().apply_pointcut by default. Such routine has
         to take in parameters a routine called joinpoint and its related
         function called function. Its result is the interception function.
-    :type pointcut_application: routine
+    :param float ttl: time to leave for weaved advices.
 
-    :return: the intercepted functions created from input joinpoint.
+    :return: the intercepted functions created from input joinpoint or a tuple
+        with intercepted functions and ttl timer.
     """
 
     if pointcut_application is None:
@@ -501,6 +525,19 @@ def weave(
         depth_predicate=_publicmembers if public else callable,
         intercepted=result, pointcut_application=pointcut_application)
 
+    if ttl is not None:
+        kwargs = {
+            'joinpoint': joinpoint,
+            'advices': advices,
+            'pointcut': pointcut,
+            'depth': depth,
+            'public': public
+        }
+        timer = Timer(ttl, unweave, kwargs=kwargs)
+        timer.start()
+
+        result = result, timer
+
     return result
 
 
@@ -539,7 +576,7 @@ def _weave(
 
 
 def unweave(
-    joinpoint, advices=None, pointcut=None, depth=1, public=False,
+    joinpoint, advices=None, pointcut=None, depth=1, public=False
 ):
     """
     Unweave advices on joinpoint with input pointcut.

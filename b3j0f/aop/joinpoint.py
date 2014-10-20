@@ -17,6 +17,11 @@ try:
 except ImportError:
     import builtins as __builtin__
 
+__all__ = [
+    'get_function', 'JoinpointError', 'get_joinpoint',
+    'get_intercepted', 'is_intercepted'
+]
+
 #: attribute which binds the intercepted function from the interceptor function
 _INTERCEPTED = '_intercepted'
 

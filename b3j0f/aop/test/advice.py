@@ -6,6 +6,8 @@ from unittest import main
 from b3j0f.utils.ut import UTCase
 from b3j0f.aop.advice import AdvicesExecutor, Advice, weave, unweave, weave_on
 
+from time import sleep
+
 
 class AdvicesExecutionTest(UTCase):
 
@@ -335,6 +337,36 @@ class WeaveTest(UTCase):
 
         self._assert_class(A)
 
+    def test_ttl(self):
+
+        def test():
+            pass
+
+        weave(joinpoint=test, advices=self.advicesexecutor, ttl=0.1)
+
+        test()
+
+        sleep(0.2)
+
+        test()
+
+        self.assertEqual(self.count, 1)
+
+    def test_cancel_ttl(self):
+
+        def test():
+            pass
+
+        _, timer = weave(joinpoint=test, advices=self.advicesexecutor, ttl=0.1)
+
+        timer.cancel()
+
+        sleep(0.2)
+
+        test()
+
+        self.assertEqual(self.count, 1)
+
 
 class WeaveOnTest(UTCase):
 
@@ -509,6 +541,7 @@ class WeaveOnTest(UTCase):
                 pass
 
         self._assert_class(A)
+
 
 if __name__ == '__main__':
     main()

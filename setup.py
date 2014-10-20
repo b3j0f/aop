@@ -16,14 +16,13 @@ dependencies = ['b3j0f.utils']
 
 setup(
     name='b3j0f.aop',
-    version='0.4.2',
+    version='0.4.3',
     install_requires=dependencies,
-    packages=find_packages(where='.', exclude=['test.*', '*.test.*']),
+    packages=find_packages(exclude=['test.*', '*.test.*']),
     author="b3j0f",
     author_email="jlabejof@yahoo.fr",
     description="Python Aspect Oriented Programming",
     long_description=desc,
-    include_package_data=True,
     url='https://github.com/mrbozzo/aop/',
     license='MIT License',
     classifiers=[
