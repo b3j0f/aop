@@ -16,8 +16,6 @@ from opcode import opmap
 
 from types import FunctionType
 
-from collections import Iterable
-
 from time import time
 
 try:
@@ -167,14 +165,16 @@ class AdvicesExecutor(object):
         self._advices = () if value is None else value
         self._advices_iterator = None
 
-    def execute(self, joinpoint=None, args=None, kwargs=None, advices=None):
+    def execute(
+        self, joinpoint=None, args=None, kwargs=None, advices=None, _new=False
+    ):
         """
         Proceed this AdvicesExecutor in calling all advices with this such
         as the only one parameter, and call at the end the joinpoint.
         """
 
-        # initialization of advices interception
-        if self._advices_iterator is None:
+        # initialization of advices interception if _new or iter is None
+        if _new or self._advices_iterator is None:
 
             # init joinpoint if not None
             if joinpoint is not None:
@@ -303,7 +303,7 @@ class AdvicesExecutor(object):
         # return advicesexecutor proceed result
         proceed = "proceed_%s" % generated_id
         newcodestr = join(
-            (newcodestr, "   return %s()\n" % proceed)
+            (newcodestr, "   return %s(_new=True)\n" % proceed)
         )
 
         # compile newcodestr
