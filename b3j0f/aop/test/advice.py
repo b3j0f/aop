@@ -134,6 +134,26 @@ class WeaveTest(UTCase):
 
         self.assertEqual(self.count, 3)
 
+    def test_lambda(self):
+
+        f = lambda: None
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+        f()
+
+        self.assertEqual(self.count, 3)
+
+        unweave(f)
+
+        f()
+
+        self.assertEqual(self.count, 3)
+
     def test_function_args(self):
 
         def f(a):
@@ -421,6 +441,17 @@ class WeaveOnTest(UTCase):
         @weave_on([self.advicesexecutor, self.advicesexecutor])
         def f():
             pass
+
+        f()
+
+        self.assertEqual(self.count, 3)
+
+    def test_lambda(self):
+
+        f = lambda: None
+
+        weave_on(self.advicesexecutor)(f)
+        weave_on([self.advicesexecutor, self.advicesexecutor])(f)
 
         f()
 

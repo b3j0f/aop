@@ -66,6 +66,12 @@ class AdvicesExecutor(object):
         - a shared context during interception such as a dictionary.
     """
 
+    #: lambda function name
+    __LAMBDA_NAME__ = (lambda: None).__name__
+
+    #: lambda function interception name
+    __INTERCEPTION__ = 'interception'
+
     #: attribute name for context execution
     CONTEXT = 'context'
 
@@ -233,6 +239,10 @@ class AdvicesExecutor(object):
 
         # get params from joinpoint
         name = joinpoint.__name__
+
+        # if joinpoint has not name, use 'function'
+        if name == AdvicesExecutor.__LAMBDA_NAME__:
+            name = AdvicesExecutor.__INTERCEPTION__
 
         # get join method for reducing concatenation time execution
         join = "".join
