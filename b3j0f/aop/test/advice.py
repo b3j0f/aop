@@ -357,6 +357,50 @@ class WeaveTest(UTCase):
 
         self._assert_class(A)
 
+    def test_multi(self):
+
+        count = 5
+
+        f = lambda: None
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+
+        for i in range(count):
+            f()
+
+        self.assertEqual(self.count, 3 * count)
+
+        unweave(f)
+
+        for i in range(count):
+            f()
+
+        self.assertEqual(self.count, 3 * count)
+
+        weave(
+            joinpoint=f,
+            advices=[self.advicesexecutor, self.advicesexecutor])
+        weave(
+            joinpoint=f,
+            advices=self.advicesexecutor)
+
+        for i in range(count):
+            f()
+
+        self.assertEqual(self.count, 6 * count)
+
+        unweave(f)
+
+        for i in range(count):
+            f()
+
+        self.assertEqual(self.count, 6 * count)
+
     def test_ttl(self):
 
         def test():
@@ -572,6 +616,57 @@ class WeaveOnTest(UTCase):
                 pass
 
         self._assert_class(A)
+
+    def test_multi(self):
+
+        count = 5
+
+        f = lambda: None
+
+        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(f)
+        weave_on(advices=self.advicesexecutor)(f)
+
+        for i in range(count):
+            f()
+
+        self.assertEqual(self.count, 3 * count)
+
+        unweave(f)
+
+        for i in range(count):
+            f()
+
+        self.assertEqual(self.count, 3 * count)
+
+        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(f)
+        weave_on(advices=self.advicesexecutor)(f)
+
+        for i in range(count):
+            f()
+
+        self.assertEqual(self.count, 6 * count)
+
+        unweave(f)
+
+        for i in range(count):
+            f()
+
+        self.assertEqual(self.count, 6 * count)
+
+    def test_ttl(self):
+
+        def test():
+            pass
+
+        weave_on(advices=self.advicesexecutor, ttl=0.1)(test)
+
+        test()
+
+        sleep(0.2)
+
+        test()
+
+        self.assertEqual(self.count, 1)
 
 
 if __name__ == '__main__':

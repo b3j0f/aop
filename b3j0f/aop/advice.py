@@ -30,6 +30,7 @@ from b3j0f.aop.joinpoint import (
     _unapply_interception, is_intercepted, get_function
 )
 from b3j0f.utils.version import basestring, PY3
+from b3j0f.utils.iterable import ensureiterable
 
 __all__ = [
     'AdviceError', 'AdvicesExecutor', 'get_advices',
@@ -476,6 +477,7 @@ def weave(
 
     :param callable joinpoint: joinpoint from where checking pointcut and
         weaving advices.
+    :param advices: advices to weave on joinpoint.
     :param pointcut: condition for weaving advices on joinpointe.
         The condition depends on its type.
     :type pointcut:
@@ -499,11 +501,7 @@ def weave(
         pointcut_application = AdvicesExecutor().apply_pointcut
 
     # initialize advices
-    if not isinstance(advices, Iterable):
-        advices = [advices]
-
-    elif not isinstance(advices, list):
-        advices = list(advices)
+    advices = ensureiterable(advices, iterable=list)
 
     # check for not empty advices
     if not advices:
@@ -615,12 +613,7 @@ def unweave(
     # ensure advices is a list if not None
     if advices is not None:
 
-        # initialize advices
-        if not isinstance(advices, Iterable):
-            advices = [advices]
-
-        elif not isinstance(advices, list):
-            advices = list(advices)
+        advices = ensureiterable(advices, iterable=list)
 
     # initialize pointcut
 
@@ -672,15 +665,29 @@ def _unweave(
                 depth=depth - 1, depth_predicate=depth_predicate)
 
 
-def weave_on(advices, pointcut=None, depth=1):
+def weave_on(advices, pointcut=None, depth=1, ttl=None):
     """
     Decorator for weaving advices on a callable joinpoint.
+
+    :param pointcut: condition for weaving advices on joinpointe.
+        The condition depends on its type.
+    :type pointcut:
+        - NoneType: advices are weaved on joinpoint.
+        - str: joinpoint name is compared to pointcut regex.
+        - function: called with joinpoint in parameter, if True, advices will
+            be weaved on joinpoint.
+
+    :param depth: class weaving depthing
+    :type depth: int
+
+    :param public: (default True) weave only on public members
+    :type public: bool
     """
 
     def _weave(joinpoint):
         weave(
             joinpoint=joinpoint, advices=advices, pointcut=pointcut,
-            depth=depth)
+            depth=depth, ttl=ttl)
         return joinpoint
 
     return _weave

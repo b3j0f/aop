@@ -6,7 +6,7 @@ Aspect Oriented Programming Library for Python
 Provides tools to (un)weave and get advices, and check joinpoint status.
 """
 
-__version__ = "0.4.4"
+__version__ = "0.4.5"
 
 __all__ = [
     'weave', 'unweave', 'weave_on', 'get_advices',
