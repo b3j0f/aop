@@ -17,6 +17,11 @@ try:
 except ImportError:
     import builtins as __builtin__
 
+from types import MethodType
+
+from b3j0f.utils.version import PY2
+from b3j0f.utils.reflect import base_elts
+
 __all__ = [
     'get_function', 'JoinpointError', 'get_joinpoint',
     'get_intercepted', 'is_intercepted'
@@ -85,16 +90,35 @@ def get_function(joinpoint):
     return result
 
 
-def _apply_interception(joinpoint, interception_function, _globals=None):
+def _container(container, joinpoint):
+    """
+    Try to get the right joinpoint container (instance or class).
+    """
+
+    result = container
+
+    # get container if not specified but findable
+    if container is None and ismethod(joinpoint):
+        if getattr(joinpoint, '__self__', None) is not None:
+            result = joinpoint.__self__
+        elif PY2:
+            result = joinpoint.im_class
+
+    return result
+
+
+def _apply_interception(
+    joinpoint, interception_function, container=None, _globals=None
+):
     """
     Apply interception on input joinpoint and return the final joinpoint.
 
     :param function joinpoint: joinpoint on applying the interception_function
+    :param function interception_function: interception function to apply on
+        joinpoint
+    :param container: joinpoint container (instance or class) if not None.
 
-    :param interception_function: interception function to apply on joinpoint
-    :type interception_function: function
-
-    :return: both interception object and intercepted functions
+    :return: both interception and intercepted
         - if joinpoint is a builtin function,
             the result is a (wrapper function, builtin).
         - if joinpoint is a function, interception is joinpoint where
@@ -105,6 +129,10 @@ def _apply_interception(joinpoint, interception_function, _globals=None):
 
     intercepted = joinpoint
     interception = interception_function
+
+    # try to get the right container
+    if container is None:
+        container = _container(container, joinpoint)
 
     # if joinpoint is a builtin
     if isbuiltin(joinpoint) or getmodule(joinpoint) is __builtin__:
@@ -123,6 +151,23 @@ def _apply_interception(joinpoint, interception_function, _globals=None):
                 raise JoinpointError(
                     "Impossible to weave on not modifiable function {0}. \
                     Must be contained in module {1}".format(joinpoint, module))
+
+    elif container is not None:
+        # update container
+        intercepted_name = intercepted.__name__
+        if ismethod(intercepted):  # in creating eventually a new method
+            args = [interception, container]
+            if PY2:  # if py2, specify the container class
+                # and unbound method type
+                if intercepted.__self__ is None:
+                    args = [interception, None, container]
+                else:
+                    args.append(container.__class__)
+            # instantiate a new method
+            interception = MethodType(*args)
+
+        # set in container the new method
+        setattr(container, intercepted_name, interception)
 
     else:  # update code with interception code
         joinpoint_function = get_function(joinpoint)
@@ -148,18 +193,23 @@ def _apply_interception(joinpoint, interception_function, _globals=None):
     return interception_function, intercepted
 
 
-def _unapply_interception(joinpoint):
+def _unapply_interception(joinpoint, container=None):
     """
     Unapply interception on input joinpoint in cleaning it.
 
     :param routine joinpoint: joinpoint from where removing an interception
         function. is_joinpoint(joinpoint) must be True.
+    :param container: joinpoint container.
     """
 
     joinpoint_function = get_function(joinpoint)
 
     # get previous joinpoint
     intercepted = getattr(joinpoint_function, _INTERCEPTED)
+
+    # try to get the right container
+    if container is None:
+        container = _container(container, joinpoint)
 
     # if old joinpoint is a not modifiable resource
     if isbuiltin(intercepted):
@@ -178,6 +228,17 @@ def _unapply_interception(joinpoint):
                 "Impossible to unapply interception on not modifiable element \
                 {0}. Must be contained in module {1}".format(
                     joinpoint, module))
+
+    elif container is not None:
+        # replace the old method
+        intercepted_name = intercepted.__name__
+        cls = container if isclass(container) else container.__class__
+        elts = base_elts(cls=cls, elt=intercepted)
+        if elts:  # remove inherited joinpoint
+            delattr(container, intercepted_name)
+        else:  # or put it
+            setattr(container, intercepted_name, intercepted)
+        delattr(joinpoint_function, _INTERCEPTED)
 
     else:
         # update old code on joinpoint
@@ -223,6 +284,9 @@ def get_intercepted(joinpoint):
     interception = get_function(joinpoint)
 
     result = getattr(interception, _INTERCEPTED, None)
+
+    if result is not None and ismethod(result):
+        result = result.__func__
 
     return result
 

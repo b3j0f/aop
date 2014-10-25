@@ -8,7 +8,9 @@ from re import compile as re_compile
 
 from uuid import uuid4 as uuid
 
-from inspect import getmembers, isroutine, getargspec, isbuiltin
+from inspect import (
+    getmembers, isroutine, getargspec, isbuiltin, getfile
+)
 
 from functools import wraps
 
@@ -25,7 +27,7 @@ except ImportError:
 
 from b3j0f.aop.joinpoint import (
     get_intercepted, _apply_interception,
-    _unapply_interception, is_intercepted, get_function
+    _unapply_interception, is_intercepted, get_function, _container
 )
 from b3j0f.utils.version import basestring, PY3
 from b3j0f.utils.iterable import ensureiterable
@@ -40,7 +42,7 @@ __all__ = [
 LOAD_GLOBAL = opmap['LOAD_GLOBAL']
 LOAD_CONST = opmap['LOAD_CONST']
 
-WRAPPER_ASSIGNMENTS = ('__doc__', '__annotations__')
+WRAPPER_ASSIGNMENTS = ('__doc__', '__annotations__', '__dict__', '__module__')
 
 _ADVICES = '_advices'  #: joinpoint advices attribute name
 
@@ -166,7 +168,7 @@ class AdvicesExecutor(object):
         self._advices_iterator = None
 
     def execute(
-        self, joinpoint=None, args=None, kwargs=None, advices=None, _new=False
+        self, joinpoint=None, args=None, kwargs=None, advices=None
     ):
         """
         Proceed this AdvicesExecutor in calling all advices with this such
@@ -174,7 +176,7 @@ class AdvicesExecutor(object):
         """
 
         # initialization of advices interception if _new or iter is None
-        if _new or self._advices_iterator is None:
+        if self._advices_iterator is None:
 
             # init joinpoint if not None
             if joinpoint is not None:
@@ -198,6 +200,9 @@ class AdvicesExecutor(object):
             # initialize self._advices_iterator
             self._advices_iterator = iter(self._advices)
 
+            # initialize context
+            self.context = {}
+
         try:
             # get next advice
             advice = next(self._advices_iterator)
@@ -219,10 +224,15 @@ class AdvicesExecutor(object):
 
         return self.execute(*args, **kwargs)
 
-    def apply_pointcut(self, joinpoint, function=None):
+    def apply_pointcut(self, joinpoint, function=None, container=None):
         """
         Apply pointcut on input joinpoint and returns final joinpoint.
         """
+
+        try:
+            __file__ = getfile(joinpoint)
+        except TypeError:
+            __file__ = '<string>'
 
         if function is None:
             function = get_function(joinpoint)
@@ -267,7 +277,7 @@ class AdvicesExecutor(object):
         newcodestr = join((newcodestr, "):\n"))
 
         # unique id which will be used for advicesexecutor and kwargs
-        generated_id = int(time())
+        generated_id = repr(time()).replace('.', '_')
 
         # if kwargs is None
         if kwargs is None and args:
@@ -289,6 +299,10 @@ class AdvicesExecutor(object):
         # advicesexecutor name
         ae = "advicesexecutor_%s" % generated_id
 
+        # initialize _advices_iterator
+        newcodestr = join(
+            (newcodestr, "   %s._advices_iterator = None\n" % (ae)))
+
         if varargs:
             newcodestr = join(
                 (newcodestr, "   %s.args = %s\n" % (ae, varargs))
@@ -303,11 +317,11 @@ class AdvicesExecutor(object):
         # return advicesexecutor proceed result
         proceed = "proceed_%s" % generated_id
         newcodestr = join(
-            (newcodestr, "   return %s(_new=True)\n" % proceed)
+            (newcodestr, "   return %s()\n" % proceed)
         )
 
         # compile newcodestr
-        code = compile(newcodestr, '<string>', 'single')
+        code = compile(newcodestr, __file__, 'single')
 
         _globals = {}
 
@@ -377,9 +391,14 @@ class AdvicesExecutor(object):
             else:
                 setattr(interception_function, wrapper_assignment, value)
 
+        # get the right container
+        if container is None:
+            container = _container(container, joinpoint)
+
         # get interception_function
         interception, intercepted = _apply_interception(
-            joinpoint=joinpoint, interception_function=interception_function)
+            joinpoint=joinpoint, interception_function=interception_function,
+            container=container)
 
         self.intercepted = interception
 
@@ -403,7 +422,7 @@ def _add_advices(joinpoint, advices):
     setattr(joinpoint, _ADVICES, joinpoint_advices)
 
 
-def _remove_advices(joinpoint, advices):
+def _remove_advices(joinpoint, advices, container):
     """
     Remove advices from input joinpoint.
 
@@ -414,16 +433,17 @@ def _remove_advices(joinpoint, advices):
 
     if advices is not None:
         joinpoint_advices = list(
-            advice for advice in joinpoint_advices if advice not in advices
-        )
+            advice for advice in joinpoint_advices if advice not in advices)
+
     else:
         joinpoint_advices = ()
 
     if joinpoint_advices:  # update joinpoint advices
         setattr(joinpoint, _ADVICES, joinpoint_advices)
+
     else:  # free joinpoint advices if necessary
         delattr(joinpoint, _ADVICES)
-        _unapply_interception(joinpoint)
+        _unapply_interception(joinpoint, container=container)
 
 
 def get_advices(element):
@@ -469,7 +489,7 @@ def _publicmembers(joinpoint):
 
 
 def weave(
-    joinpoint, advices, pointcut=None, depth=1, public=False,
+    joinpoint, advices, pointcut=None, container=None, depth=1, public=False,
     pointcut_application=None, ttl=None
 ):
     """
@@ -478,6 +498,7 @@ def weave(
     :param callable joinpoint: joinpoint from where checking pointcut and
         weaving advices.
     :param advices: advices to weave on joinpoint.
+    :param container: joinpoint container (class or instance).
     :param pointcut: condition for weaving advices on joinpointe.
         The condition depends on its type.
     :type pointcut:
@@ -528,8 +549,12 @@ def weave(
 
     result = []
 
+    if container is None:
+        container = _container(container, joinpoint)
+
     _weave(
-        joinpoint=joinpoint, advices=advices, pointcut=pointcut, depth=depth,
+        joinpoint=joinpoint, advices=advices, pointcut=pointcut,
+        container=container, depth=depth,
         depth_predicate=_publicmembers if public else callable,
         intercepted=result, pointcut_application=pointcut_application)
 
@@ -550,8 +575,8 @@ def weave(
 
 
 def _weave(
-    joinpoint, advices, pointcut, depth, depth_predicate, intercepted,
-    pointcut_application
+    joinpoint, advices, pointcut, container, depth, depth_predicate,
+    intercepted, pointcut_application
 ):
     """
     Weave deeply advices in joinpoint.
@@ -566,7 +591,8 @@ def _weave(
             # intercept joinpoint if not intercepted
             if not is_intercepted(joinpoint):
                 interception_function = pointcut_application(
-                    joinpoint=joinpoint, function=interception_function)
+                    joinpoint=joinpoint, function=interception_function,
+                    container=container)
             # add advices to the interception function
             _add_advices(joinpoint=interception_function, advices=advices)
 
@@ -578,20 +604,21 @@ def _weave(
         for name, member in getmembers(joinpoint, depth_predicate):
             _weave(
                 joinpoint=member, advices=advices, pointcut=pointcut,
+                container=joinpoint,
                 depth=depth - 1, depth_predicate=depth_predicate,
                 intercepted=intercepted,
                 pointcut_application=pointcut_application)
 
 
 def unweave(
-    joinpoint, advices=None, pointcut=None, depth=1, public=False
+    joinpoint, advices=None, pointcut=None, container=None,
+    depth=1, public=False,
 ):
     """
     Unweave advices on joinpoint with input pointcut.
 
-    :param joinpoint: joinpoint from where checking pointcut and weaving
+    :param callable joinpoint: joinpoint from where checking pointcut and weaving
         advices.
-    :type joinpoint: callable
 
     :param pointcut: condition for weaving advices on joinpointe.
         The condition depends on its type.
@@ -601,11 +628,9 @@ def unweave(
         - function: called with joinpoint in parameter, if True, advices will
             be weaved on joinpoint.
 
-    :param depth: class weaving depthing
-    :type depth: int
-
-    :param public: (default True) weave only on public members
-    :type public: bool
+    :param container: joinpoint container (class or instance).
+    :param int depth: class weaving depthing
+    :param bool public: (default True) weave only on public members
 
     :return: the intercepted functions created from input joinpoint.
     """
@@ -633,13 +658,18 @@ def unweave(
         raise AdviceError(
             "{0} {1} {2}".format(error_msg, advice_msg, right_msg))
 
+    # get the right container
+    if container is None:
+        container = _container(container, joinpoint)
+
     _unweave(
-        joinpoint=joinpoint, advices=advices, pointcut=pointcut, depth=depth,
-        depth_predicate=_publicmembers if public else callable)
+        joinpoint=joinpoint, advices=advices, pointcut=pointcut,
+        container=container,
+        depth=depth, depth_predicate=_publicmembers if public else callable)
 
 
 def _unweave(
-    joinpoint, advices, pointcut, depth, depth_predicate,
+    joinpoint, advices, pointcut, container, depth, depth_predicate
 ):
     """
     Unweave deeply advices in joinpoint.
@@ -655,22 +685,26 @@ def _unweave(
             if is_intercepted(joinpoint):
             # remove advices to the interception function
                 _remove_advices(
-                    joinpoint=interception_function, advices=advices)
+                    joinpoint=interception_function,
+                    advices=advices,
+                    container=container)
 
     # search inside the joinpoint
     elif depth > 0:  # for an object or a class, weave on methods
         for name, member in getmembers(joinpoint, depth_predicate):
             _unweave(
                 joinpoint=member, advices=advices, pointcut=pointcut,
+                container=joinpoint,
                 depth=depth - 1, depth_predicate=depth_predicate)
 
 
-def weave_on(advices, pointcut=None, depth=1, ttl=None):
+def weave_on(advices, pointcut=None, container=None, depth=1, ttl=None):
     """
     Decorator for weaving advices on a callable joinpoint.
 
     :param pointcut: condition for weaving advices on joinpointe.
         The condition depends on its type.
+    :param container: joinpoint container (instance or class).
     :type pointcut:
         - NoneType: advices are weaved on joinpoint.
         - str: joinpoint name is compared to pointcut regex.
@@ -687,7 +721,7 @@ def weave_on(advices, pointcut=None, depth=1, ttl=None):
     def _weave(joinpoint):
         weave(
             joinpoint=joinpoint, advices=advices, pointcut=pointcut,
-            depth=depth, ttl=ttl)
+            container=container, depth=depth, ttl=ttl)
         return joinpoint
 
     return _weave

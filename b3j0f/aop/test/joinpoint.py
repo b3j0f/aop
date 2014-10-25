@@ -87,7 +87,8 @@ class ApplyInterceptionTest(UTCase):
         self.assertIsNone(get_intercepted(A.method))
         self.assertFalse(is_intercepted(A.method))
 
-        interception, intercepted = _apply_interception(A.method, lambda: None)
+        interception, intercepted = _apply_interception(
+            joinpoint=A.method, interception_function=lambda: None)
 
         joinpoint_type = FunctionType if PY3 else MethodType
         self.assertTrue(
@@ -98,12 +99,57 @@ class ApplyInterceptionTest(UTCase):
             self.assertIs(interception, A.method)
         else:
             self.assertIs(interception, A.method.__func__)
-        self.assertIs(get_intercepted(A.method), intercepted)
+        self.assertIs(get_intercepted(A.method), get_function(intercepted))
 
-        _unapply_interception(A.method)
+        _unapply_interception(joinpoint=A.method)
 
         self.assertFalse(is_intercepted(interception), 'check not joinpoint')
         self.assertIsNone(get_intercepted(A.method))
+
+    def test_class_container(self):
+        class A(object):
+            def method(self):
+                pass
+
+        class B(A):
+            pass
+
+        self.assertEqual(A.method, B.method)
+
+        _apply_interception(
+            joinpoint=B.method,
+            interception_function=lambda: None,
+            container=B)
+
+        self.assertNotEqual(A.method, B.method)
+
+        _unapply_interception(
+            joinpoint=B.method, container=B)
+
+        self.assertEqual(A.method, B.method)
+
+    def test_instance(self):
+        class A(object):
+            def method(self):
+                pass
+
+        class B(A):
+            pass
+
+        a = A()
+        b = B()
+
+        self.assertIs(a.method.__dict__, b.method.__dict__)
+
+        _apply_interception(
+            joinpoint=b.method,
+            interception_function=lambda: None)
+
+        self.assertIsNot(a.method.__dict__, b.method.__dict__)
+
+        _unapply_interception(joinpoint=b.method)
+
+        self.assertIs(a.method.__dict__, b.method.__dict__)
 
     def test_builtin(self):
 

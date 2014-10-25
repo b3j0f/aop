@@ -431,6 +431,202 @@ class WeaveTest(UTCase):
 
         self.assertEqual(self.count, 1)
 
+    def test_inheritance(self):
+
+        class BaseTest:
+            def test(self):
+                pass
+
+        class Test(BaseTest):
+            pass
+
+        self.assertEqual(BaseTest.test, Test.test)
+
+        weave(container=Test, joinpoint=Test.test, advices=lambda x: None)
+
+        self.assertNotEqual(BaseTest.test, Test.test)
+
+        unweave(container=Test, joinpoint=Test.test)
+
+        self.assertEqual(BaseTest.test, Test.test)
+
+    def test_inherited_method(self):
+
+        self.count = 0
+
+        class BaseTest:
+            def __init__(self, testcase):
+                self.testcase = testcase
+
+            def test(self):
+                self.testcase.count += 1
+
+        class Test(BaseTest):
+            pass
+
+        basetest = BaseTest(self)
+
+        test = Test(self)
+
+        weave(container=Test, joinpoint=Test.test, advices=lambda x: None)
+
+        basetest.test()
+
+        self.assertEqual(self.count, 1)
+
+        test.test()
+
+        self.assertEqual(self.count, 1)
+
+        unweave(container=Test, joinpoint=Test.test)
+
+        basetest.test()
+
+        self.assertEqual(self.count, 2)
+
+        test.test()
+
+        self.assertEqual(self.count, 3)
+
+    def test_inherited_instance_method(self):
+
+        self.count = 0
+
+        class BaseTest:
+            def __init__(self, testcase):
+                self.testcase = testcase
+
+            def test(self):
+                self.testcase.count += 1
+
+        class Test(BaseTest):
+            pass
+
+        test = Test(self)
+        test2 = Test(self)
+        basetest = BaseTest(self)
+        basetest2 = BaseTest(self)
+
+        test.test()
+        test2.test()
+        basetest.test()
+        basetest2.test()
+        self.assertEqual(self.count, 4)
+
+        weave(joinpoint=test.test, advices=lambda ae: None)
+
+        test.test()
+        test2.test()
+        self.assertEqual(self.count, 5)
+
+        basetest.test()
+        basetest2.test()
+        self.assertEqual(self.count, 7)
+
+        unweave(joinpoint=test.test)
+
+        test.test()
+        self.assertEqual(self.count, 8)
+
+        weave(joinpoint=basetest.test, advices=lambda ae: None)
+
+        test.test()
+        test2.test()
+        basetest2.test()
+        self.assertEqual(self.count, 11)
+
+        basetest.test()
+        self.assertEqual(self.count, 11)
+
+        unweave(joinpoint=basetest.test)
+
+        test.test()
+        test2.test()
+        basetest2.test()
+        basetest.test()
+        self.assertEqual(self.count, 15)
+
+        weave(joinpoint=BaseTest.test, advices=lambda ae: None)
+
+        test.test()
+        test2.test()
+        basetest2.test()
+        basetest.test()
+        self.assertEqual(self.count, 15)
+
+        unweave(joinpoint=BaseTest.test)
+
+    def test_inherited_instance_method_with_container(self):
+
+        self.count = 0
+
+        class BaseTest:
+            def __init__(self, testcase):
+                self.testcase = testcase
+
+            def test(self):
+                self.testcase.count += 1
+
+        class Test(BaseTest):
+            pass
+
+        test = Test(self)
+        test2 = Test(self)
+        basetest = BaseTest(self)
+        basetest2 = BaseTest(self)
+
+        test.test()
+        test2.test()
+        basetest.test()
+        basetest2.test()
+        self.assertEqual(self.count, 4)
+
+        weave(joinpoint=test.test, advices=lambda ae: None, container=test)
+
+        test.test()
+        test2.test()
+        self.assertEqual(self.count, 5)
+
+        basetest.test()
+        basetest2.test()
+        self.assertEqual(self.count, 7)
+
+        unweave(joinpoint=test.test, container=test)
+
+        test.test()
+        self.assertEqual(self.count, 8)
+
+        weave(joinpoint=basetest.test, advices=lambda ae: None, container=basetest)
+
+        test.test()
+        test2.test()
+        basetest2.test()
+        self.assertEqual(self.count, 11)
+
+        basetest.test()
+        self.assertEqual(self.count, 11)
+
+        unweave(joinpoint=basetest.test, container=basetest)
+
+        test.test()
+        test2.test()
+        basetest2.test()
+        basetest.test()
+        self.assertEqual(self.count, 15)
+
+        weave(
+            joinpoint=BaseTest.test,
+            advices=lambda ae: None,
+            container=BaseTest)
+
+        test.test()
+        test2.test()
+        basetest2.test()
+        basetest.test()
+        self.assertEqual(self.count, 15)
+
+        unweave(joinpoint=BaseTest.test, container=BaseTest)
+
 
 class WeaveOnTest(UTCase):
 
