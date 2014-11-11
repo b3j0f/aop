@@ -4,7 +4,7 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
-from b3j0f.aop.advice import AdvicesExecutor, Advice, weave, unweave, weave_on
+from b3j0f.aop.advice import Advice, weave, unweave, weave_on, _Joinpoint
 
 from time import sleep
 
@@ -16,13 +16,13 @@ class AdvicesExecutionTest(UTCase):
         def a():
             return 2
 
-        self.je = AdvicesExecutor(joinpoint=a)
+        self.je = _Joinpoint(joinpoint=a)
 
     def test_execution(self):
 
         result = self.je.execute()
 
-        self.assertEqual(result, 2, 'check AdvicesExecutor proceed')
+        self.assertEqual(result, 2, 'check _Joinpoint proceed')
 
     def test_add_advices(self):
 
@@ -36,7 +36,7 @@ class AdvicesExecutionTest(UTCase):
 
         result = self.je()
 
-        self.assertEqual(result, (2, 3), 'check AdvicesExecutor proceed')
+        self.assertEqual(result, (2, 3), 'check _Joinpoint proceed')
 
 
 class AdviceTest(UTCase):
@@ -596,7 +596,9 @@ class WeaveTest(UTCase):
         test.test()
         self.assertEqual(self.count, 8)
 
-        weave(joinpoint=basetest.test, advices=lambda ae: None, container=basetest)
+        weave(
+            joinpoint=basetest.test,
+            advices=lambda ae: None, container=basetest)
 
         test.test()
         test2.test()
@@ -626,6 +628,58 @@ class WeaveTest(UTCase):
         self.assertEqual(self.count, 15)
 
         unweave(joinpoint=BaseTest.test, container=BaseTest)
+
+    def test_instance_method(self):
+
+        class A:
+            def __call__(self):
+                return 1
+
+        a = A()
+
+        self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
+
+        weave(joinpoint=a.__call__, advices=lambda ae: None)
+
+        self.assertNotEqual(a.__call__, A.__call__)
+
+        result = a()
+
+        self.assertEqual(result, None)
+
+        unweave(joinpoint=a.__call__)
+
+        self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
+
+        result = a()
+
+        self.assertEqual(result, 1)
+
+    def test_instance_method_with_pointcut(self):
+
+        class A:
+            def __call__(self):
+                return 1
+
+        a = A()
+
+        self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
+
+        weave(joinpoint=a, pointcut='__call__', advices=lambda ae: None)
+
+        self.assertNotEqual(a.__call__, A.__call__)
+
+        result = a()
+
+        self.assertEqual(result, None)
+
+        unweave(joinpoint=a)
+
+        self.assertEqual(a.__call__, A.__call__)
+
+        result = a()
+
+        self.assertEqual(result, 1)
 
 
 class WeaveOnTest(UTCase):

@@ -27,13 +27,17 @@ except ImportError:
 
 from b3j0f.aop.joinpoint import (
     get_intercepted, _apply_interception,
-    _unapply_interception, is_intercepted, get_function, _container
+    _unapply_interception, is_intercepted, _get_function, find_ctx,
+    Joinpoint
 )
 from b3j0f.utils.version import basestring, PY3
 from b3j0f.utils.iterable import ensureiterable
+from b3j0f.utils.property import (
+    put_property, setdefault, get_first_property, del_properties, find_ctx
+)
 
 __all__ = [
-    'AdviceError', 'AdvicesExecutor', 'get_advices',
+    'AdviceError', 'get_advices',
     'weave', 'unweave', 'weave_on',
     'Advice'
 ]
@@ -55,123 +59,43 @@ class AdviceError(Exception):
     pass
 
 
-class AdvicesExecutor(object):
+class _Joinpoint(Joinpoint):
     """
     Manage joinpoint execution with Advices.
 
-    Advices are callable objects which take in parameter a AdvicesExecutor.
+    Advices are callable objects which take in parameter a Joinpoint.
 
-    AdvicesExecutor provides to advices:
+    Joinpoint provides to advices:
         - the joinpoint,
         - joinpoint call arguments as args and kwargs property,
         - a shared context during interception such as a dictionary.
     """
 
-    #: lambda function name
-    __LAMBDA_NAME__ = (lambda: None).__name__
+    #: static advices attribute name
+    STATIC = 'static'
 
-    #: lambda function interception name
-    __INTERCEPTION__ = 'interception'
-
-    #: attribute name for context execution
-    CONTEXT = 'context'
-
-    #: attribute name for interception joinpoint
-    CALLEE = 'callee'
-
-    #: attribute name for callee args
-    ARGS = 'args'
-
-    #: attribute name for callee kwargs
-    KWARGS = 'kwargs'
-
-    #: private attribute name for intercepted element
-    _INTERCEPTED = '_intercepted'
-
-    #: private attribute name for internal iterator for advices execution
-    _ADVICES_ITERATOR = '_advices_iterator'
-
-    #: private attribute name for advices
-    _ADVICES = '_advices'
-
-    __slots__ = (
-        CONTEXT, CALLEE, ARGS, KWARGS,
-        _INTERCEPTED, _ADVICES_ITERATOR, _ADVICES
-    )
+    __slots__ = (STATIC, ) + Joinpoint.__slots__
 
     def __init__(
-        self,
-        joinpoint=None, args=None, kwargs=None, advices=None, context=None
+        self, static=False, *args, **kwargs
     ):
         """
-        Initialize a new AdvicesExecutor with a joinpoint,
-        its calling arguments (args and kwargs) and a list of advices
-        (callable which take self in parameter).
+        Initialize a new Joinpoint with a static property
 
-        If joinpoint, args and kwargs are not None, self AdvicesExecutor is
-        used in a static context.
-
-        :param callable joinpoint: joinpoint which is intercepted by input
-            advices. is_intercepted(joinpoint) must be True
-
-        :param args: joinpoint call *args argument.
-        :type args: tuple of values.
-
-        :param dict kwargs: joinpoint call **kwargs argument
-
-        :param advices: Iterable of advices
-            If None, they will be dynamically loaded during proceeding related
-            to joinpoint.
-        :type advices: Iterable of callables
+        :param bool static: if True, advices are statics.
 
         :param dict context: execution context
         """
 
-        super(AdvicesExecutor, self).__init__()
+        super(_Joinpoint, self).__init__(*args, **kwargs)
 
-        self.intercepted = joinpoint
-
-        self.args = () if args is None else args
-        self.kwargs = {} if kwargs is None else kwargs
-
-        self.advices = advices
-
-        self.context = {} if context is None else context
-
-    @property
-    def intercepted(self):
-        """
-        Get intercepted joinpoint.
-        """
-
-        return self._intercepted
-
-    @intercepted.setter
-    def intercepted(self, value):
-
-        self.callee = value
-
-        # if value is not intercepted, apply self to value
-        if value is not None and not is_intercepted(value):
-            self.apply_pointcut(value)
-        self._intercepted = None if value is None else get_intercepted(value)
-
-    @property
-    def advices(self):
-
-        return self._advices
-
-    @advices.setter
-    def advices(self, value):
-
-        self._advices = () if value is None else value
-        self._advices_iterator = None
+        self.static = static
 
     def execute(
         self, joinpoint=None, args=None, kwargs=None, advices=None
     ):
         """
-        Proceed this AdvicesExecutor in calling all advices with this such
+        Proceed this Joinpoint in calling all advices with this such
         as the only one parameter, and call at the end the joinpoint.
         """
 
@@ -235,7 +159,7 @@ class AdvicesExecutor(object):
             __file__ = '<string>'
 
         if function is None:
-            function = get_function(joinpoint)
+            function = _get_function(joinpoint)
 
         try:
             # get params from joinpoint
@@ -252,8 +176,8 @@ class AdvicesExecutor(object):
         name = joinpoint.__name__
 
         # if joinpoint has not name, use 'function'
-        if name == AdvicesExecutor.__LAMBDA_NAME__:
-            name = AdvicesExecutor.__INTERCEPTION__
+        if name == Joinpoint.__LAMBDA_NAME__:
+            name = Joinpoint.__INTERCEPTION__
 
         # get join method for reducing concatenation time execution
         join = "".join
@@ -393,7 +317,7 @@ class AdvicesExecutor(object):
 
         # get the right container
         if container is None:
-            container = _container(container, joinpoint)
+            container = find_ctx(container, joinpoint)
 
         # get interception_function
         interception, intercepted = _apply_interception(
@@ -414,12 +338,12 @@ def _add_advices(joinpoint, advices):
     :param bool ordered: ensure advices to add will be done in input order
     """
 
-    joinpoint_advices = getattr(joinpoint, _ADVICES, [])
+    joinpoint_advices = setdefault(joinpoint, key=_ADVICES, default=[])
 
     for advice in advices:
         joinpoint_advices.append(advice)
 
-    setattr(joinpoint, _ADVICES, joinpoint_advices)
+    put_property(joinpoint, key=_ADVICES, value=joinpoint_advices)
 
 
 def _remove_advices(joinpoint, advices, container):
@@ -429,7 +353,7 @@ def _remove_advices(joinpoint, advices, container):
     :param advices: advices to remove. If None, remove all advices.
     """
 
-    joinpoint_advices = getattr(joinpoint, _ADVICES, [])
+    joinpoint_advices = get_first_property(joinpoint, key=_ADVICES, default=[])
 
     if advices is not None:
         joinpoint_advices = list(
@@ -439,10 +363,10 @@ def _remove_advices(joinpoint, advices, container):
         joinpoint_advices = ()
 
     if joinpoint_advices:  # update joinpoint advices
-        setattr(joinpoint, _ADVICES, joinpoint_advices)
+        put_property(joinpoint, key=_ADVICES, value=joinpoint_advices)
 
     else:  # free joinpoint advices if necessary
-        delattr(joinpoint, _ADVICES)
+        del_properties(joinpoint, keys=_ADVICES)
         _unapply_interception(joinpoint, container=container)
 
 
@@ -457,10 +381,10 @@ def get_advices(element):
 
     if is_intercepted(element):
 
-        joinpoint_function = get_function(element)
+        joinpoint_function = _get_function(element)
 
         if joinpoint_function is not None:
-            result = getattr(joinpoint_function, _ADVICES, ())
+            result = setdefault(joinpoint_function, key=_ADVICES, default=())
 
         result = tuple(result)
 
@@ -484,8 +408,8 @@ def _namematcher(regex):
 
 def _publicmembers(joinpoint):
 
-    return callable(joinpoint) and not getattr(
-        joinpoint, '__name__', '').startswith('_')
+    return callable(joinpoint) \
+            and not getattr(joinpoint, '__name__', '').startswith('_')
 
 
 def weave(
@@ -509,17 +433,18 @@ def weave(
     :param int depth: class weaving depthing
     :param bool public: (default True) weave only on public members
     :param routine pointcut_application: routine which applies a pointcut when
-        required. AdvicesExecutor().apply_pointcut by default. Such routine has
+        required. Joinpoint().apply_pointcut by default. Such routine has
         to take in parameters a routine called joinpoint and its related
         function called function. Its result is the interception function.
     :param float ttl: time to leave for weaved advices.
 
     :return: the intercepted functions created from input joinpoint or a tuple
         with intercepted functions and ttl timer.
+    :rtype: list
     """
 
     if pointcut_application is None:
-        pointcut_application = AdvicesExecutor().apply_pointcut
+        pointcut_application = Joinpoint().apply_pointcut
 
     # initialize advices
     advices = ensureiterable(advices, iterable=list)
@@ -550,7 +475,7 @@ def weave(
     result = []
 
     if container is None:
-        container = _container(container, joinpoint)
+        container = find_ctx(container, joinpoint)
 
     _weave(
         joinpoint=joinpoint, advices=advices, pointcut=pointcut,
@@ -585,7 +510,7 @@ def _weave(
     # if weaving has to be done
     if isroutine(joinpoint) and (pointcut is None or pointcut(joinpoint)):
         # get joinpoint interception function
-        interception_function = get_function(joinpoint)
+        interception_function = _get_function(joinpoint)
         # does not handle not python functions
         if interception_function is not None:
             # intercept joinpoint if not intercepted
@@ -617,8 +542,8 @@ def unweave(
     """
     Unweave advices on joinpoint with input pointcut.
 
-    :param callable joinpoint: joinpoint from where checking pointcut and weaving
-        advices.
+    :param callable joinpoint: joinpoint from where checking pointcut and
+        weaving advices.
 
     :param pointcut: condition for weaving advices on joinpointe.
         The condition depends on its type.
@@ -660,7 +585,7 @@ def unweave(
 
     # get the right container
     if container is None:
-        container = _container(container, joinpoint)
+        container = find_ctx(container, joinpoint)
 
     _unweave(
         joinpoint=joinpoint, advices=advices, pointcut=pointcut,
@@ -678,7 +603,7 @@ def _unweave(
     # if weaving has to be done
     if isroutine(joinpoint) and (pointcut is None or pointcut(joinpoint)):
         # get joinpoint interception function
-        interception_function = get_function(joinpoint)
+        interception_function = _get_function(joinpoint)
         # does not handle not python functions
         if interception_function is not None:
             # intercept joinpoint if not intercepted

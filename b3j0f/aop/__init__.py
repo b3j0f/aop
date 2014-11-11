@@ -11,10 +11,13 @@ __version__ = "0.5.0"
 __all__ = [
     'weave', 'unweave', 'weave_on', 'get_advices',
     'Advice', 'AdvicesExecutor',
-    'get_joinpoint', 'get_intercepted', 'is_intercepted'
+    'get_intercepted', 'is_intercepted',
+    'Joinpoint', 'JoinpointError'
 ]
 
-from .advice import (
-    weave, unweave, weave_on, Advice, AdvicesExecutor, get_advices
+from .joinpoint import (
+    Joinpoint, get_intercepted, is_intercepted, JoinpointError
 )
-from .joinpoint import get_joinpoint, get_intercepted, is_intercepted
+from .advice import (
+    weave, unweave, weave_on, Advice, get_advices
+)
