@@ -1,5 +1,29 @@
 # -*- coding: utf-8 -*-
 
+# --------------------------------------------------------------------
+# The MIT License (MIT)
+#
+# Copyright (c) 2014 Jonathan Labéjof <jonathan.labejof@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# --------------------------------------------------------------------
+
 """
 Provides functions in order to weave/unweave/get advices from callable objects.
 """
@@ -9,16 +33,10 @@ from re import compile as re_compile
 from uuid import uuid4 as uuid
 
 from inspect import (
-    getmembers, isroutine, getargspec, isbuiltin, getfile
+    getmembers, isroutine
 )
 
-from functools import wraps
-
 from opcode import opmap
-
-from types import FunctionType
-
-from time import time
 
 try:
     from threading import Timer
@@ -27,10 +45,10 @@ except ImportError:
 
 from b3j0f.aop.joinpoint import (
     get_intercepted, _apply_interception,
-    _unapply_interception, is_intercepted, _get_function, find_ctx,
+    _unapply_interception, is_intercepted, _get_function,
     Joinpoint
 )
-from b3j0f.utils.version import basestring, PY3
+from b3j0f.utils.version import basestring
 from b3j0f.utils.iterable import ensureiterable
 from b3j0f.utils.property import (
     put_property, setdefault, get_first_property, del_properties, find_ctx
@@ -71,262 +89,11 @@ class _Joinpoint(Joinpoint):
         - a shared context during interception such as a dictionary.
     """
 
-    #: static advices attribute name
-    STATIC = 'static'
+    def get_advices(self, target):
 
-    __slots__ = (STATIC, ) + Joinpoint.__slots__
+        result = get_advices(target)
 
-    def __init__(
-        self, static=False, *args, **kwargs
-    ):
-        """
-        Initialize a new Joinpoint with a static property
-
-        :param bool static: if True, advices are statics.
-
-        :param dict context: execution context
-        """
-
-        super(_Joinpoint, self).__init__(*args, **kwargs)
-
-        self.static = static
-
-    def execute(
-        self, joinpoint=None, args=None, kwargs=None, advices=None
-    ):
-        """
-        Proceed this Joinpoint in calling all advices with this such
-        as the only one parameter, and call at the end the joinpoint.
-        """
-
-        # initialization of advices interception if _new or iter is None
-        if self._advices_iterator is None:
-
-            # init joinpoint if not None
-            if joinpoint is not None:
-                self.intercepted = joinpoint
-
-            # init args if not None
-            if args is not None:
-                self.args = args
-
-            # init kwargs if not None
-            if kwargs is not None:
-                self.kwargs = kwargs
-
-            # advices are input advices if not None else get_advices(joinpoint)
-            if advices is not None:
-                self.advices = advices
-
-            elif not self.advices:
-                self.advices = get_advices(self.callee)
-
-            # initialize self._advices_iterator
-            self._advices_iterator = iter(self._advices)
-
-            # initialize context
-            self.context = {}
-
-        try:
-            # get next advice
-            advice = next(self._advices_iterator)
-
-        except StopIteration:  # if no advice can be applied
-            # nonify _advices_iterator for next joinpoint call
-            self._advices_iterator = None
-            # and call intercepted
-            return self._intercepted(*self.args, **self.kwargs)
-
-        else:
-            # if has next, apply advice on self
-            return advice(self)
-
-    def __call__(self, *args, **kwargs):
-        """
-        Shortcut to self.execute
-        """
-
-        return self.execute(*args, **kwargs)
-
-    def apply_pointcut(self, joinpoint, function=None, container=None):
-        """
-        Apply pointcut on input joinpoint and returns final joinpoint.
-        """
-
-        try:
-            __file__ = getfile(joinpoint)
-        except TypeError:
-            __file__ = '<string>'
-
-        if function is None:
-            function = _get_function(joinpoint)
-
-        try:
-            # get params from joinpoint
-            args, varargs, kwargs, _ = getargspec(function)
-        except TypeError:
-            # if function is not a python function, create one generic
-            @wraps(joinpoint)
-            def function(*args, **kwargs):
-                pass
-            # get params from joinpoint wrapper
-            args, varargs, kwargs, _ = getargspec(function)
-
-        # get params from joinpoint
-        name = joinpoint.__name__
-
-        # if joinpoint has not name, use 'function'
-        if name == Joinpoint.__LAMBDA_NAME__:
-            name = Joinpoint.__INTERCEPTION__
-
-        # get join method for reducing concatenation time execution
-        join = "".join
-
-        newcodestr = "def %s(" % name
-        if args:
-            newcodestr = join((newcodestr, "%s" % args[0]))
-        for arg in args[1:]:
-            newcodestr = join((newcodestr, ", %s" % arg))
-
-        if varargs is not None:
-            if args:
-                newcodestr = join((newcodestr, ", "))
-            newcodestr = join((newcodestr, "*%s" % varargs))
-
-        if kwargs is not None:
-            if args or varargs is not None:
-                newcodestr = join((newcodestr, ", "))
-            newcodestr = join((newcodestr, "**%s" % kwargs))
-
-        newcodestr = join((newcodestr, "):\n"))
-
-        # unique id which will be used for advicesexecutor and kwargs
-        generated_id = repr(time()).replace('.', '_')
-
-        # if kwargs is None
-        if kwargs is None and args:
-            kwargs = "kwargs_%s" % generated_id  # generate a name
-            # initialize a new dict with args
-            newcodestr = join((newcodestr, "   %s = {\n" % kwargs))
-            for arg in args:
-                newcodestr = join(
-                    (newcodestr, "      '%s': %s,\n" % (arg, arg))
-                )
-            newcodestr = join((newcodestr, "   }\n"))
-        else:
-            # fill args in kwargs
-            for arg in args:
-                newcodestr = join(
-                    (newcodestr, "   %s['%s'] = %s\n" % (kwargs, arg, arg))
-                )
-
-        # advicesexecutor name
-        ae = "advicesexecutor_%s" % generated_id
-
-        # initialize _advices_iterator
-        newcodestr = join(
-            (newcodestr, "   %s._advices_iterator = None\n" % (ae)))
-
-        if varargs:
-            newcodestr = join(
-                (newcodestr, "   %s.args = %s\n" % (ae, varargs))
-            )
-
-        # set kwargs in advicesexecutor
-        if kwargs is not None:
-            newcodestr = join(
-                (newcodestr, "   %s.kwargs = %s\n" % (ae, kwargs))
-            )
-
-        # return advicesexecutor proceed result
-        proceed = "proceed_%s" % generated_id
-        newcodestr = join(
-            (newcodestr, "   return %s()\n" % proceed)
-        )
-
-        # compile newcodestr
-        code = compile(newcodestr, __file__, 'single')
-
-        _globals = {}
-
-        # define the code with the new function
-        exec(code, _globals)
-
-        # get new code
-        newco = _globals[name].__code__
-        # get new consts list
-        newconsts = list(newco.co_consts)
-
-        if PY3:
-            newcode = list(newco.co_code)
-        else:
-            newcode = map(ord, newco.co_code)
-
-        consts_values = {ae: self, proceed: self.execute}
-
-        # change LOAD_GLOBAL to LOAD_CONST
-        index = 0
-        newcodelen = len(newcode)
-        while index < newcodelen:
-            if newcode[index] == LOAD_GLOBAL:
-                oparg = newcode[index + 1] + (newcode[index + 2] << 8)
-                name = newco.co_names[oparg]
-                if name in consts_values:
-                    pos = len(newconsts)
-                    newconsts.append(consts_values[name])
-                    newcode[index] = LOAD_CONST
-                    newcode[index + 1] = pos & 0xFF
-                    newcode[index + 2] = pos >> 8
-                    if name == proceed:
-                        break  # stop when proceed is encountered
-            index += 1
-
-        # get code string
-        codestr = bytes(newcode) if PY3 else join(map(chr, newcode))
-
-        # get vargs
-        vargs = [
-            newco.co_argcount, newco.co_nlocals, newco.co_stacksize,
-            newco.co_flags, codestr, tuple(newconsts), newco.co_names,
-            newco.co_varnames, newco.co_filename, newco.co_name,
-            newco.co_firstlineno, newco.co_lnotab, newco.co_freevars,
-            newco.co_cellvars
-        ]
-        if PY3:
-            vargs.insert(1, newco.co_kwonlyargcount)
-
-        # instanciate a new code object
-        codeobj = type(newco)(*vargs)
-        # instanciate a new function
-        if function is None or isbuiltin(function):
-            interception_function = FunctionType(codeobj, {})
-        else:
-            interception_function = type(function)(
-                codeobj, function.__globals__, function.__name__,
-                function.__defaults__, function.__closure__
-            )
-
-        # update wrapping assignments
-        for wrapper_assignment in WRAPPER_ASSIGNMENTS:
-            try:
-                value = getattr(joinpoint, wrapper_assignment)
-            except AttributeError:
-                pass
-            else:
-                setattr(interception_function, wrapper_assignment, value)
-
-        # get the right container
-        if container is None:
-            container = find_ctx(container, joinpoint)
-
-        # get interception_function
-        interception, intercepted = _apply_interception(
-            joinpoint=joinpoint, interception_function=interception_function,
-            container=container)
-
-        self.intercepted = interception
-
-        return interception
+        return result
 
 
 def _add_advices(joinpoint, advices):
@@ -500,64 +267,65 @@ def weave(
 
 
 def _weave(
-    joinpoint, advices, pointcut, container, depth, depth_predicate,
-    intercepted, pointcut_application
+    target, advices, pointcut, container, depth, depth_predicate,
+    intercepted, pointcut_application, ctx
 ):
     """
-    Weave deeply advices in joinpoint.
+    Weave deeply advices in target.
     """
 
     # if weaving has to be done
-    if isroutine(joinpoint) and (pointcut is None or pointcut(joinpoint)):
-        # get joinpoint interception function
-        interception_function = _get_function(joinpoint)
+    if isroutine(target) and (pointcut is None or pointcut(target)):
+        # get target interception function
+        interception_function = _get_function(target)
         # does not handle not python functions
         if interception_function is not None:
-            # intercept joinpoint if not intercepted
-            if not is_intercepted(joinpoint):
+            # intercept target if not intercepted
+            if not is_intercepted(target):
                 interception_function = pointcut_application(
-                    joinpoint=joinpoint, function=interception_function,
+                    target=target, function=interception_function,
                     container=container)
             # add advices to the interception function
-            _add_advices(joinpoint=interception_function, advices=advices)
+
+            _add_advices(target=interception_function, advices=advices)
 
             # append interception function to the intercepted ones
             intercepted.append(interception_function)
 
-    # search inside the joinpoint
+    # search inside the target
     elif depth > 0:  # for an object or a class, weave on methods
-        for name, member in getmembers(joinpoint, depth_predicate):
+        for name, member in getmembers(target, depth_predicate):
             _weave(
-                joinpoint=member, advices=advices, pointcut=pointcut,
-                container=joinpoint,
+                target=member, advices=advices, pointcut=pointcut,
+                container=target,
                 depth=depth - 1, depth_predicate=depth_predicate,
                 intercepted=intercepted,
                 pointcut_application=pointcut_application)
 
 
 def unweave(
-    joinpoint, advices=None, pointcut=None, container=None,
+    target, advices=None, pointcut=None, container=None,
     depth=1, public=False,
 ):
     """
-    Unweave advices on joinpoint with input pointcut.
+    Unweave advices on target with input pointcut.
 
-    :param callable joinpoint: joinpoint from where checking pointcut and
+    :param callable target: target from where checking pointcut and
         weaving advices.
 
     :param pointcut: condition for weaving advices on joinpointe.
         The condition depends on its type.
     :type pointcut:
-        - NoneType: advices are weaved on joinpoint.
-        - str: joinpoint name is compared to pointcut regex.
-        - function: called with joinpoint in parameter, if True, advices will
-            be weaved on joinpoint.
+        - NoneType: advices are weaved on target.
+        - str: target name is compared to pointcut regex.
+        - function: called with target in parameter, if True, advices will
+            be weaved on target.
 
-    :param container: joinpoint container (class or instance).
+    :param container: target container (class or instance).
     :param int depth: class weaving depthing
     :param bool public: (default True) weave only on public members
 
-    :return: the intercepted functions created from input joinpoint.
+    :return: the intercepted functions created from input target.
     """
 
     # ensure advices is a list if not None
@@ -576,7 +344,7 @@ def unweave(
         pointcut = _namematcher(pointcut)
 
     else:
-        error_msg = "Wrong pointcut to check weaving on {0}.".format(joinpoint)
+        error_msg = "Wrong pointcut to check weaving on {0}.".format(target)
         advice_msg = "Must be None, or be a str or a function/method."
         right_msg = "Not {1}".format(type(pointcut))
 
@@ -585,41 +353,41 @@ def unweave(
 
     # get the right container
     if container is None:
-        container = find_ctx(container, joinpoint)
+        container = find_ctx(container, target)
 
     _unweave(
-        joinpoint=joinpoint, advices=advices, pointcut=pointcut,
+        target=target, advices=advices, pointcut=pointcut,
         container=container,
         depth=depth, depth_predicate=_publicmembers if public else callable)
 
 
 def _unweave(
-    joinpoint, advices, pointcut, container, depth, depth_predicate
+    target, advices, pointcut, container, depth, depth_predicate, ctx
 ):
     """
-    Unweave deeply advices in joinpoint.
+    Unweave deeply advices in target.
     """
 
     # if weaving has to be done
-    if isroutine(joinpoint) and (pointcut is None or pointcut(joinpoint)):
-        # get joinpoint interception function
-        interception_function = _get_function(joinpoint)
+    if isroutine(target) and (pointcut is None or pointcut(target)):
+        # get target interception function
+        interception_function = _get_function(target)
         # does not handle not python functions
         if interception_function is not None:
-            # intercept joinpoint if not intercepted
-            if is_intercepted(joinpoint):
+            # intercept target if not intercepted
+            if is_intercepted(target):
             # remove advices to the interception function
                 _remove_advices(
-                    joinpoint=interception_function,
+                    target=interception_function,
                     advices=advices,
                     container=container)
 
-    # search inside the joinpoint
+    # search inside the target
     elif depth > 0:  # for an object or a class, weave on methods
-        for name, member in getmembers(joinpoint, depth_predicate):
+        for name, member in getmembers(target, depth_predicate):
             _unweave(
-                joinpoint=member, advices=advices, pointcut=pointcut,
-                container=joinpoint,
+                target=member, advices=advices, pointcut=pointcut,
+                container=target,
                 depth=depth - 1, depth_predicate=depth_predicate)
 
 
@@ -643,11 +411,11 @@ def weave_on(advices, pointcut=None, container=None, depth=1, ttl=None):
     :type public: bool
     """
 
-    def _weave(joinpoint):
+    def _weave(target):
         weave(
-            joinpoint=joinpoint, advices=advices, pointcut=pointcut,
+            target=target, advices=advices, pointcut=pointcut,
             container=container, depth=depth, ttl=ttl)
-        return joinpoint
+        return target
 
     return _weave
 

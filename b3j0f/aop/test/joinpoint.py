@@ -1,6 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# --------------------------------------------------------------------
+# The MIT License (MIT)
+#
+# Copyright (c) 2014 Jonathan Labéjof <jonathan.labejof@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# --------------------------------------------------------------------
+
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
@@ -25,7 +49,7 @@ class JoinpointTest(UTCase):
             self.count += 1
             return self.count
 
-        self.joinpoint = Joinpoint(target=a)
+        self.joinpoint = Joinpoint(target=a, advices=[])
 
     def test_execution(self):
 
@@ -51,7 +75,7 @@ class JoinpointTest(UTCase):
 
             return proceed, 3
 
-        self.joinpoint.advices = [advice]
+        self.joinpoint._advices = [advice]
 
         result = self.joinpoint.start()
 
@@ -80,7 +104,9 @@ class GetFunctionTest(UTCase):
 
         func = _get_function(A)
 
-        self.assertEqual(func, A.__init__)
+        _function = A if PY2 else A.__init__
+
+        self.assertEqual(func, _function)
 
     def test_builtin(self):
 
@@ -96,7 +122,9 @@ class GetFunctionTest(UTCase):
 
         func = _get_function(A.method)
 
-        self.assertIs(func, A.method.__func__)
+        _func = A.method if PY3 else A.method.__func__
+
+        self.assertIs(func, _func)
 
     def test_instancemethod(self):
 
@@ -109,7 +137,8 @@ class GetFunctionTest(UTCase):
         func = _get_function(a.method)
 
         self.assertIs(func, a.method.__func__)
-        self.assertIs(func, A.method.__func__)
+        _func = A.method if PY3 else A.method.__func__
+        self.assertIs(func, _func)
 
     def test_function(self):
 
@@ -135,25 +164,23 @@ class GetFunctionTest(UTCase):
 
 class ApplyInterceptionTest(UTCase):
 
-    def test_function(self, interception=None, function=None):
-        if function is None:
-            def function():
-                pass
+    def test_function(self):
+        def function():
+            pass
 
         __code__ = function.__code__
 
         self.assertFalse(is_intercepted(function))
         self.assertIsNone(get_intercepted(min))
 
-        if interception is None:
-            interception, intercepted = _apply_interception(
-                function, lambda x: None)
+        interception, intercepted = _apply_interception(
+            function, lambda x: None)
 
         self.assertTrue(isinstance(interception, FunctionType))
 
         self.assertIs(interception, function)
-        self.assertIs(get_intercepted(function), intercepted)
-        self.assertTrue(is_intercepted(function))
+        self.assertIs(get_intercepted(interception), intercepted)
+        self.assertTrue(is_intercepted(interception))
         self.assertIsNot(interception.__code__, __code__)
         self.assertIs(intercepted.__code__, __code__)
 
@@ -169,32 +196,27 @@ class ApplyInterceptionTest(UTCase):
             def method(self):
                 pass
 
-        self.assertIsNone(get_intercepted(A.method, container=A))
-        self.assertFalse(is_intercepted(A.method, container=A))
+        self.assertIsNone(get_intercepted(A.method))
+        self.assertFalse(is_intercepted(A.method))
+
+        interception_fn = lambda: None
 
         interception, intercepted = _apply_interception(
-            joinpoint=A.method,
-            interception_function=lambda: None,
-            container=A)
+            target=A.method,
+            interception_fn=interception_fn,
+            ctx=A)
 
         joinpoint_type = FunctionType if PY3 else MethodType
 
-        self.assertTrue(
-            isinstance(_get_function(interception, container=A),
-                joinpoint_type))
+        self.assertTrue(isinstance(interception, joinpoint_type))
+        self.assertTrue(is_intercepted(A.method))
+        self.assertEqual(interception, A.method)
+        self.assertIs(intercepted, get_intercepted(A.method))
 
-        self.assertTrue(is_intercepted(A.method, container=A))
-        func = A.method
-        if PY2:
-            func = func.__func__
-        self.assertIs(interception, func)
-        self.assertIs(get_intercepted(A.method, container=A),
-            _get_function(intercepted))
+        _unapply_interception(target=A.method, ctx=A)
 
-        _unapply_interception(joinpoint=A.method, container=A)
-
-        self.assertFalse(is_intercepted(A.method, container=A))
-        self.assertIsNone(get_intercepted(A.method, container=A))
+        self.assertFalse(is_intercepted(A.method))
+        self.assertIsNone(get_intercepted(A.method))
 
     def test_class_container(self):
         class A(object):
@@ -207,14 +229,14 @@ class ApplyInterceptionTest(UTCase):
         self.assertEqual(A.method, B.method)
 
         _apply_interception(
-            joinpoint=B.method,
-            interception_function=lambda: None,
-            container=B)
+            target=B.method,
+            interception_fn=lambda: None,
+            ctx=B)
 
         self.assertNotEqual(A.method, B.method)
 
         _unapply_interception(
-            joinpoint=B.method, container=B)
+            target=B.method, ctx=B)
 
         self.assertEqual(A.method, B.method)
 
@@ -232,12 +254,12 @@ class ApplyInterceptionTest(UTCase):
         self.assertEqual(a.__dict__, b.__dict__)
 
         _apply_interception(
-            joinpoint=b.method,
-            interception_function=lambda: None)
+            target=b.method,
+            interception_fn=lambda: None)
 
         self.assertNotEqual(a.__dict__, b.__dict__)
 
-        _unapply_interception(joinpoint=b.method)
+        _unapply_interception(target=b.method)
 
         self.assertEqual(a.__dict__, b.__dict__)
 
@@ -269,17 +291,19 @@ class ApplyInterceptionTest(UTCase):
         self.assertFalse(is_intercepted(ApplyInterceptionTest))
         self.assertIsNone(get_intercepted(ApplyInterceptionTest))
 
-        freevar = 1
+        func = (lambda: None)
 
-        func = (lambda: freevar) if PY3 else lambda: None
+        __init__ = ApplyInterceptionTest.__init__
 
         interception, intercepted = _apply_interception(
-            ApplyInterceptionTest, func)
+            ApplyInterceptionTest,
+            func
+        )
 
-        self.assertTrue(isinstance(ApplyInterceptionTest, type))
+        self.assertEqual(intercepted, __init__)
+        self.assertEqual(interception, ApplyInterceptionTest.__init__)
 
         self.assertTrue(is_intercepted(ApplyInterceptionTest))
-        self.assertIs(_get_function(interception), ApplyInterceptionTest)
         self.assertIs(get_intercepted(ApplyInterceptionTest), intercepted)
 
         _unapply_interception(ApplyInterceptionTest)

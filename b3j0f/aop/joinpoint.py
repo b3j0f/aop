@@ -1,5 +1,29 @@
 # -*- coding: utf-8 -*-
 
+# --------------------------------------------------------------------
+# The MIT License (MIT)
+#
+# Copyright (c) 2014 Jonathan Labéjof <jonathan.labejof@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# --------------------------------------------------------------------
+
 """
 Module which aims to manage python joinpoint interception.
 
@@ -127,7 +151,7 @@ class Joinpoint(object):
         super(Joinpoint, self).__init__()
 
         # set target
-        self.set_target(target, target_ctx)
+        self.set_target(target=target, ctx=target_ctx)
 
         # set target arguments
         self.args = () if args is None else args
@@ -146,15 +170,17 @@ class Joinpoint(object):
         :param target: new target to use.
         :param target ctx: target ctx if target is an class/instance attribute.
         """
+
         if target is not None:
             # check if target is already intercepted
-            if not is_intercepted(target):
+            if is_intercepted(target):
+                # set self interception last target reference
+                self._interception = target
+                # and target
+                self.target = get_intercepted(target)
+            else:
                 # if not, update target reference with new interception
                 target = self.apply_pointcut(target, ctx=ctx)
-            # set self interception last target reference
-            self._interception = get_intercepted(target)
-            # and target
-            self.target = target
 
     def start(
         self, target=None, args=None, kwargs=None, advices=None, ctx=None,
@@ -193,7 +219,7 @@ class Joinpoint(object):
 
         # get advices to process
         if advices is None:
-            if self._advices:
+            if self._advices is not None:
                 advices = self._advices
             else:
                 advices = self.get_advices(self._interception)
@@ -260,21 +286,24 @@ class Joinpoint(object):
         # get join method for reducing concatenation time execution
         join = "".join
 
-        newcodestr = "def %s(" % name
+        # default indentation
+        indent = '    '
+
+        newcodestr = "def {0}(".format(name)
         if args:
-            newcodestr = join((newcodestr, "%s" % args[0]))
+            newcodestr = join((newcodestr, "{0}".format(args[0])))
         for arg in args[1:]:
-            newcodestr = join((newcodestr, ", %s" % arg))
+            newcodestr = join((newcodestr, ", {0}".format(arg)))
 
         if varargs is not None:
             if args:
                 newcodestr = join((newcodestr, ", "))
-            newcodestr = join((newcodestr, "*%s" % varargs))
+            newcodestr = join((newcodestr, "*{0}".format(varargs)))
 
         if kwargs is not None:
             if args or varargs is not None:
                 newcodestr = join((newcodestr, ", "))
-            newcodestr = join((newcodestr, "**%s" % kwargs))
+            newcodestr = join((newcodestr, "**{0}".format(kwargs)))
 
         newcodestr = join((newcodestr, "):\n"))
 
@@ -285,38 +314,42 @@ class Joinpoint(object):
         if kwargs is None and args:
             kwargs = "kwargs_%s" % generated_id  # generate a name
             # initialize a new dict with args
-            newcodestr = join((newcodestr, "   %s = {\n" % kwargs))
+            newcodestr = join(
+                (newcodestr, "{0}{1} = {\n".format(indent, kwargs)))
             for arg in args:
                 newcodestr = join(
-                    (newcodestr, "      '%s': %s,\n" % (arg, arg))
+                    (newcodestr, "{0}{0}'{1}': {1},\n".format(indent, arg))
                 )
-            newcodestr = join((newcodestr, "   }\n"))
+            newcodestr = join((newcodestr, "{0}}}\n".format(indent)))
 
         else:
             # fill args in kwargs
             for arg in args:
                 newcodestr = join(
-                    (newcodestr, "   %s['%s'] = %s\n" % (kwargs, arg, arg))
+                    (newcodestr, "{0}{1}['{2}'] = {2}\n".format(
+                        indent, kwargs, arg))
                 )
 
         # advicesexecutor name
-        ae = "advicesexecutor_%s" % generated_id
+        joinpoint = "joinpoint_{0}".format(generated_id)
 
         if varargs:
             newcodestr = join(
-                (newcodestr, "   %s.args = %s\n" % (ae, varargs))
+                (newcodestr, "{0}{1}.args = {2}\n".format(
+                    indent, joinpoint, varargs))
             )
 
         # set kwargs in advicesexecutor
         if kwargs is not None:
             newcodestr = join(
-                (newcodestr, "   %s.kwargs = %s\n" % (ae, kwargs))
+                (newcodestr, "{0}{1}.kwargs = {2}\n".format(
+                    indent, joinpoint, kwargs))
             )
 
         # return advicesexecutor proceed result
-        start = "start_%s" % generated_id
+        start = "start_{0}".format(generated_id)
         newcodestr = join(
-            (newcodestr, "   return %s()\n" % start)
+            (newcodestr, "{0}return {1}()\n".format(indent, start))
         )
 
         # compile newcodestr
@@ -329,15 +362,23 @@ class Joinpoint(object):
 
         # get new code
         newco = _globals[name].__code__
+
         # get new consts list
         newconsts = list(newco.co_consts)
+
+        # get new co_names
+        co_names = set(newco.co_names)
+        # remove start and joinpoint name from co_names
+        co_names.remove(start)
+        if joinpoint in co_names:
+            co_names.remove(joinpoint)
 
         if PY3:
             newcode = list(newco.co_code)
         else:
             newcode = map(ord, newco.co_code)
 
-        consts_values = {ae: self, start: self.start}
+        consts_values = {joinpoint: self, start: self.start}
 
         # change LOAD_GLOBAL to LOAD_CONST
         index = 0
@@ -362,9 +403,10 @@ class Joinpoint(object):
         # get vargs
         vargs = [
             newco.co_argcount, newco.co_nlocals, newco.co_stacksize,
-            newco.co_flags, codestr, tuple(newconsts), newco.co_names,
+            newco.co_flags, codestr, tuple(newconsts), tuple(co_names),
             newco.co_varnames, newco.co_filename, newco.co_name,
-            newco.co_firstlineno, newco.co_lnotab, newco.co_freevars,
+            newco.co_firstlineno, newco.co_lnotab,
+            function.__code__.co_freevars,
             newco.co_cellvars
         ]
         if PY3:
@@ -374,11 +416,11 @@ class Joinpoint(object):
         codeobj = type(newco)(*vargs)
         # instanciate a new function
         if function is None or isbuiltin(function):
-            interception_function = FunctionType(codeobj, {})
+            interception_fn = FunctionType(codeobj, {})
 
         else:
-            interception_function = type(function)(
-                codeobj, function.__globals__, function.__name__,
+            interception_fn = type(function)(
+                codeobj, {}, function.__name__,
                 function.__defaults__, function.__closure__
             )
 
@@ -389,17 +431,20 @@ class Joinpoint(object):
             except AttributeError:
                 pass
             else:
-                setattr(interception_function, wrapper_assignment, value)
+                setattr(interception_fn, wrapper_assignment, value)
 
         # get the right ctx
         if ctx is None:
             ctx = find_ctx(elt=target)
 
-        # get interception_function
+        # get interception_fn
         interception, intercepted = _apply_interception(
-            target=target, interception_function=interception_function,
+            target=target, interception_fn=interception_fn,
             ctx=ctx)
 
+        # set interception
+        self._interception = interception
+        # and target
         self.target = intercepted
 
         return interception
@@ -415,13 +460,13 @@ class Joinpoint(object):
 
 
 def _apply_interception(
-    target, interception_function, ctx=None, _globals=None
+    target, interception_fn, ctx=None, _globals=None
 ):
     """
     Apply interception on input target and return the final target.
 
-    :param function target: target on applying the interception_function
-    :param function interception_function: interception function to apply on
+    :param function target: target on applying the interception_fn.
+    :param function interception_fn: interception function to apply on
         target
     :param ctx: target ctx (instance or class) if not None.
 
@@ -435,7 +480,7 @@ def _apply_interception(
     """
 
     intercepted = target
-    interception = interception_function
+    interception = interception_fn
 
     # try to get the right ctx
     if ctx is None:
@@ -451,7 +496,7 @@ def _apply_interception(
             # update all references by value
             for name, member in getmembers(
                     module, lambda member: member is target):
-                setattr(module, name, interception_function)
+                setattr(module, name, interception_fn)
                 found = True
 
             if not found:  # raise Exception if not found
@@ -459,9 +504,23 @@ def _apply_interception(
                     "Impossible to weave on not modifiable function {0}. \
                     Must be contained in module {1}".format(target, module))
 
-    elif ctx is not None:
-        # update ctx
-        intercepted_name = intercepted.__name__
+    elif ctx is None or ctx is target and not isclass(target):
+        # update code with interception code
+        target_fn = _get_function(target)
+        # switch interception and intercepted
+        interception, intercepted = target, interception_fn
+        # switch of code between target_fn and
+        # interception_fn
+        target_fn.__code__, interception_fn.__code__ = \
+            interception_fn.__code__, target_fn.__code__
+
+    else:
+        # get target function
+        target_function = _get_function(target)
+        # get target name
+        target_name = target_function.__name__
+        # get the right intercepted
+        intercepted = getattr(ctx, target_name)
 
         if ismethod(intercepted):  # in creating eventually a new method
 
@@ -477,27 +536,19 @@ def _apply_interception(
             interception = MethodType(*args)
 
         # set in ctx the new method
-        setattr(ctx, intercepted_name, interception)
+        setattr(ctx, target_name, interception)
 
-    else:  # update code with interception code
-        joinpoint_function = _get_function(target)
-        interception = target
-        intercepted = interception_function
-        # switch of code between joinpoint_function and
-        # interception_function
-        joinpoint_function.__code__, interception_function.__code__ = \
-            interception_function.__code__, joinpoint_function.__code__
+    # add intercepted into interception_fn globals and attributes
+    interception_fn = _get_function(interception)
 
-    # add intercepted into interception_function globals and attributes
-    interception_function = _get_function(interception)
-
-    interception_function.__globals__[_INTERCEPTED] = intercepted
-    interception_function.__globals__[_INTERCEPTION] = interception
+    setattr(interception_fn, _INTERCEPTED, intercepted)
+    interception_fn.__globals__[_INTERCEPTED] = intercepted
+    interception_fn.__globals__[_INTERCEPTION] = interception
 
     if _globals is not None:
-        interception_function.__globals__.update(_globals)
+        interception_fn.__globals__.update(_globals)
 
-    return interception_function, intercepted
+    return interception, intercepted
 
 
 def _unapply_interception(target, ctx=None):
@@ -539,7 +590,13 @@ def _unapply_interception(target, ctx=None):
                 {0}. Must be contained in module {1}".format(
                     target, module))
 
-    elif ctx is not None:
+    elif ctx is None or ctx is target and not isclass(target):
+        # update old code on target
+        joinpoint_function.__code__ = intercepted.__code__
+        # and delete the _INTERCEPTED attribute
+        delattr(joinpoint_function, _INTERCEPTED)
+
+    else:
         # replace the old method
         intercepted_name = intercepted.__name__
         cls = ctx if isclass(ctx) else ctx.__class__
@@ -549,12 +606,6 @@ def _unapply_interception(target, ctx=None):
         else:  # or put it
             setattr(ctx, intercepted_name, intercepted)
 
-        delattr(joinpoint_function, _INTERCEPTED)
-
-    else:
-        # update old code on target
-        joinpoint_function.__code__ = intercepted.__code__
-        # and delete the _INTERCEPTED attribute
         delattr(joinpoint_function, _INTERCEPTED)
 
 
@@ -620,9 +671,11 @@ def _get_function(target):
 
     # in case of class, final target is its constructor
     if isclass(target):
-        constructor = getattr(target, '__init__', getattr(target, '__new__'))
+        constructor = getattr(
+            target, '__init__',  # try to find __init__
+            getattr(target, '__new__', target))  # try to find __new__ | target
         # if constructor is a method, return function method
-        if ismethod(target):
+        if ismethod(constructor):
             result = constructor.__func__
         # else return constructor
         else:
