@@ -34,7 +34,7 @@ object.
 """
 
 from inspect import isbuiltin, ismethod, isclass, isfunction, getmodule, \
-    getmembers, getfile, getargspec
+    getmembers, getfile, getargspec, isroutine
 
 from opcode import opmap
 
@@ -50,8 +50,6 @@ from functools import wraps
 from time import time
 
 from b3j0f.utils.version import PY3, PY2
-from b3j0f.utils.reflect import is_inherited
-from b3j0f.utils.property import find_ctx
 
 __all__ = [
     'Joinpoint', 'JoinpointError',
@@ -64,12 +62,36 @@ LOAD_CONST = opmap['LOAD_CONST']
 
 #: attribute which binds the intercepted function from the interceptor function
 _INTERCEPTED = '_intercepted'
+#: ctx intercepted atttribute name
+_INTERCEPTED_CTX = '_intercepted_ctx'
 
 #: attribute which binds an interception function to its parent joinpoint
 _INTERCEPTION = '_interception'
 
 #: list of attributes to set after wrapping a function with a joinpoint
 WRAPPER_ASSIGNMENTS = ['__doc__', '__dict__', '__module__']
+
+
+def find_ctx(elt):
+    """
+    Find a Pointcut ctx which is a class/instance related to input
+    function/method.
+
+    :param elt: elt from where find a ctx.
+
+    :return: elt ctx. None if no ctx available or if elt is a None method.
+    """
+
+    result = None
+
+    if ismethod(elt):
+
+        result = elt.__self__
+
+        if result is None and PY2:
+            result = elt.im_class
+
+    return result
 
 
 class JoinpointError(Exception):
@@ -99,10 +121,10 @@ class Joinpoint(object):
     __INTERCEPTION__ = 'interception'
 
     #: context execution attribute name
-    CTX = 'ctx'
+    EXEC_CTX = 'exec_ctx'
 
     #: interception attribute name
-    INTERCEPTION = '_interception'
+    _INTERCEPTION = '_interception'
 
     #: interception args attribute name
     ARGS = 'args'
@@ -112,6 +134,8 @@ class Joinpoint(object):
 
     #: target element attribute name
     TARGET = 'target'
+    #: target element ctx attribute name
+    CTX = 'ctx'
 
     #: private attribute name for internal iterator for advices execution
     _ADVICES_ITERATOR = '_advices_iterator'
@@ -120,14 +144,14 @@ class Joinpoint(object):
     _ADVICES = '_advices'
 
     __slots__ = (
-        CTX, INTERCEPTION, ARGS, KWARGS, TARGET,  # public attributes
-        _ADVICES_ITERATOR, _ADVICES  # private attributes
+        EXEC_CTX, ARGS, KWARGS, TARGET, CTX,  # public attributes
+        _ADVICES_ITERATOR, _ADVICES, _INTERCEPTION  # private attributes
     )
 
     def __init__(
         self,
-        target=None, args=None, kwargs=None, advices=None, target_ctx=None,
-        ctx=None
+        target=None, args=None, kwargs=None, advices=None, ctx=None,
+        exec_ctx=None
     ):
         """
         Initialize a new Joinpoint with optional parameters such as a target,
@@ -144,14 +168,16 @@ class Joinpoint(object):
         :param Iterable advices: iterable of advices which take in parameters
             this joinpoint. If None, they will be dynamically loaded during
             self proceeding time related to target.
-        :param dict ctx: execution context. Empty dict by default.
-        :param target_ctx: target ctx if target is an class/instance attribute.
+        :param dict exec_ctx: execution context. Empty dict by default.
+        :param ctx: target ctx if target is an class/instance attribute.
         """
 
         super(Joinpoint, self).__init__()
 
-        # set target
-        self.set_target(target=target, ctx=target_ctx)
+        # init critical parameters
+        self._interception = None
+        self.ctx = None
+        self.target = None
 
         # set target arguments
         self.args = () if args is None else args
@@ -161,7 +187,10 @@ class Joinpoint(object):
         self._advices = advices
 
         # set context
-        self.ctx = {} if ctx is None else ctx
+        self.exec_ctx = {} if exec_ctx is None else exec_ctx
+
+        # set target
+        self.set_target(target=target, ctx=ctx)
 
     def set_target(self, target, ctx=None):
         """
@@ -176,15 +205,15 @@ class Joinpoint(object):
             if is_intercepted(target):
                 # set self interception last target reference
                 self._interception = target
-                # and target
-                self.target = get_intercepted(target)
+                # and targets, ctx
+                self.target, self.ctx = get_intercepted(target)
             else:
                 # if not, update target reference with new interception
-                target = self.apply_pointcut(target, ctx=ctx)
+                self.apply_pointcut(target, ctx=ctx)
 
     def start(
-        self, target=None, args=None, kwargs=None, advices=None, ctx=None,
-        target_ctx=None
+        self, target=None, args=None, kwargs=None, advices=None, exec_ctx=None,
+        ctx=None
     ):
         """
         Start to proceed this Joinpoint in initializing target, its arguments
@@ -198,16 +227,14 @@ class Joinpoint(object):
             by default.
         :param list advices: advices to use in proceeding. self advices by
             default.
+        :param dict exec_ctx: execution context.
         :param target_ctx: target ctx to use in proceeding.
         :return: self.proceed()
         """
 
         # init target and _interception if not None as set_target method do
         if target is not None:
-            if not is_intercepted(target):
-                target = self.apply_pointcut(target, ctx=target_ctx)
-            self._interception = target
-            self.target = get_intercepted(target)
+            self.set_target(target=target, ctx=ctx)
 
         # init args if not None
         if args is not None:
@@ -228,7 +255,7 @@ class Joinpoint(object):
         self._advices_iterator = iter(advices)
 
         # initialize execution context
-        self.ctx = self.ctx if ctx is None else ctx
+        self.exec_ctx = self.exec_ctx if exec_ctx is None else exec_ctx
 
         result = self.proceed()
 
@@ -269,15 +296,15 @@ class Joinpoint(object):
             # get params from target
             args, varargs, kwargs, _ = getargspec(function)
         except TypeError:
-            # if function is not a python function, create one generic
-            @wraps(target)
+            # if function is not a python function, create a generic one
+            @wraps(function)
             def function(*args, **kwargs):
                 pass
             # get params from target wrapper
             args, varargs, kwargs, _ = getargspec(function)
 
         # get params from target
-        name = target.__name__
+        name = function.__name__
 
         # if target has not name, use 'function'
         if name == Joinpoint.__LAMBDA_NAME__:
@@ -315,7 +342,7 @@ class Joinpoint(object):
             kwargs = "kwargs_%s" % generated_id  # generate a name
             # initialize a new dict with args
             newcodestr = join(
-                (newcodestr, "{0}{1} = {\n".format(indent, kwargs)))
+                (newcodestr, "{0}{1} = {{\n".format(indent, kwargs)))
             for arg in args:
                 newcodestr = join(
                     (newcodestr, "{0}{0}'{1}': {1},\n".format(indent, arg))
@@ -366,13 +393,6 @@ class Joinpoint(object):
         # get new consts list
         newconsts = list(newco.co_consts)
 
-        # get new co_names
-        co_names = set(newco.co_names)
-        # remove start and joinpoint name from co_names
-        co_names.remove(start)
-        if joinpoint in co_names:
-            co_names.remove(joinpoint)
-
         if PY3:
             newcode = list(newco.co_code)
         else:
@@ -388,8 +408,12 @@ class Joinpoint(object):
                 oparg = newcode[index + 1] + (newcode[index + 2] << 8)
                 name = newco.co_names[oparg]
                 if name in consts_values:
-                    pos = len(newconsts)
-                    newconsts.append(consts_values[name])
+                    const_value = consts_values[name]
+                    if const_value in newconsts:
+                        pos = newconsts.index(const_value)
+                    else:
+                        pos = len(newconsts)
+                        newconsts.append(consts_values[name])
                     newcode[index] = LOAD_CONST
                     newcode[index + 1] = pos & 0xFF
                     newcode[index + 2] = pos >> 8
@@ -403,7 +427,7 @@ class Joinpoint(object):
         # get vargs
         vargs = [
             newco.co_argcount, newco.co_nlocals, newco.co_stacksize,
-            newco.co_flags, codestr, tuple(newconsts), tuple(co_names),
+            newco.co_flags, codestr, tuple(newconsts), newco.co_names,
             newco.co_varnames, newco.co_filename, newco.co_name,
             newco.co_firstlineno, newco.co_lnotab,
             function.__code__.co_freevars,
@@ -420,34 +444,27 @@ class Joinpoint(object):
 
         else:
             interception_fn = type(function)(
-                codeobj, {}, function.__name__,
+                codeobj, function.__globals__, function.__name__,
                 function.__defaults__, function.__closure__
             )
 
         # update wrapping assignments
         for wrapper_assignment in WRAPPER_ASSIGNMENTS:
             try:
-                value = getattr(target, wrapper_assignment)
+                value = getattr(function, wrapper_assignment)
             except AttributeError:
                 pass
             else:
                 setattr(interception_fn, wrapper_assignment, value)
 
-        # get the right ctx
-        if ctx is None:
-            ctx = find_ctx(elt=target)
+        # set interception, target function and ctx
+        self._interception, self.target, self.ctx = _apply_interception(
+            target=target,
+            interception_fn=interception_fn,
+            ctx=ctx
+        )
 
-        # get interception_fn
-        interception, intercepted = _apply_interception(
-            target=target, interception_fn=interception_fn,
-            ctx=ctx)
-
-        # set interception
-        self._interception = interception
-        # and target
-        self.target = intercepted
-
-        return interception
+        return self._interception
 
     def get_advices(self, target):
         """
@@ -465,7 +482,7 @@ def _apply_interception(
     """
     Apply interception on input target and return the final target.
 
-    :param function target: target on applying the interception_fn.
+    :param routine target: target on applying the interception_fn.
     :param function interception_fn: interception function to apply on
         target
     :param ctx: target ctx (instance or class) if not None.
@@ -476,8 +493,12 @@ def _apply_interception(
         - if target is a function, interception is target where
             code is intercepted code, and interception is a new function where
             code is target code.
-    :rtype: tuple(callable, function)
+    :rtype: tuple(callable, function, ctx)
+    :raises: TypeError if target is not a routine.
     """
+
+    if not isroutine(target):
+        raise TypeError('target {0} is not a routine.'.format(target))
 
     intercepted = target
     interception = interception_fn
@@ -504,7 +525,7 @@ def _apply_interception(
                     "Impossible to weave on not modifiable function {0}. \
                     Must be contained in module {1}".format(target, module))
 
-    elif ctx is None or ctx is target and not isclass(target):
+    elif ctx is None:
         # update code with interception code
         target_fn = _get_function(target)
         # switch interception and intercepted
@@ -534,6 +555,7 @@ def _apply_interception(
                     args.append(ctx.__class__)
             # instantiate a new method
             interception = MethodType(*args)
+            intercepted = intercepted.__func__
 
         # set in ctx the new method
         setattr(ctx, target_name, interception)
@@ -541,14 +563,19 @@ def _apply_interception(
     # add intercepted into interception_fn globals and attributes
     interception_fn = _get_function(interception)
 
+    # set intercepted
     setattr(interception_fn, _INTERCEPTED, intercepted)
+    # set intercepted ctx
+    if ctx is not None:
+        setattr(interception_fn, _INTERCEPTED_CTX, ctx)
+
     interception_fn.__globals__[_INTERCEPTED] = intercepted
     interception_fn.__globals__[_INTERCEPTION] = interception
 
     if _globals is not None:
         interception_fn.__globals__.update(_globals)
 
-    return interception, intercepted
+    return interception, intercepted, ctx
 
 
 def _unapply_interception(target, ctx=None):
@@ -567,7 +594,11 @@ def _unapply_interception(target, ctx=None):
         ctx = find_ctx(elt=target)
 
     # get previous target
-    intercepted = getattr(joinpoint_function, _INTERCEPTED, None)
+    intercepted, old_ctx = get_intercepted(target)
+
+    # if ctx is None and old_ctx is not None, update ctx with old_ctx
+    if ctx is None and old_ctx is not None:
+        ctx = old_ctx
 
     if intercepted is None:
         raise JoinpointError('{0} must be intercepted'.format(target))
@@ -590,23 +621,50 @@ def _unapply_interception(target, ctx=None):
                 {0}. Must be contained in module {1}".format(
                     target, module))
 
-    elif ctx is None or ctx is target and not isclass(target):
+    elif ctx is None:
         # update old code on target
         joinpoint_function.__code__ = intercepted.__code__
-        # and delete the _INTERCEPTED attribute
-        delattr(joinpoint_function, _INTERCEPTED)
 
     else:
-        # replace the old method
+        # replace the old method/function
         intercepted_name = intercepted.__name__
-        cls = ctx if isclass(ctx) else ctx.__class__
-        inherited = is_inherited(cls=cls, elt=intercepted)
-        if inherited:  # remove inherited target
-            delattr(ctx, intercepted_name)
-        else:  # or put it
-            setattr(ctx, intercepted_name, intercepted)
+        # new content to put in ctx
+        new_content = intercepted
 
-        delattr(joinpoint_function, _INTERCEPTED)
+        if ismethod(target):  # in creating eventually a new method
+            args = [new_content, ctx]
+            if PY2:  # if py2, specify the ctx class
+                # and unbound method type
+                if target.__self__ is None:
+                    args = [new_content, None, ctx]
+
+                else:  # or instance method
+                    args.append(ctx.__class__)
+            # instantiate a new method
+            new_content = MethodType(*args)
+        # change of content only if intercepted is not inherited
+        base_ctxs = ctx.__bases__ if isclass(ctx) else [ctx.__class__]
+        # check if content has to be deleted or changed after unapplication
+        del_content = False
+        # if base content exists
+        for base_ctx in base_ctxs:
+            if hasattr(base_ctx, intercepted_name):
+                base_content = getattr(base_ctx, intercepted_name)
+                # compare __dict__
+                if hasattr(base_content, '__dict__'):
+                    del_content = base_content.__dict__ is intercepted.__dict__
+                    if del_content:
+                        break
+        if del_content:
+            # remove inherited target from ctx
+            delattr(ctx, intercepted_name)
+        else:  # or put it in ctx
+            setattr(ctx, intercepted_name, new_content)
+
+    # delete _INTERCEPTED and _INTERCEPTED_CTX from joinpoint_function
+    delattr(joinpoint_function, _INTERCEPTED)
+    if hasattr(joinpoint_function, _INTERCEPTED_CTX):
+        delattr(joinpoint_function, _INTERCEPTED_CTX)
 
 
 def is_intercepted(target):
@@ -631,20 +689,22 @@ def is_intercepted(target):
 
 def get_intercepted(target):
     """
-    Get intercepted function from input target.
+    Get intercepted function and ctx from input target.
 
-    :param target: target from where getting the intercepted function.
+    :param target: target from where getting the intercepted function and ctx.
 
-    :return: target intercepted function. None if no intercepted function
-        exist.
-    :rtype: function or NoneType
+    :return: target intercepted function and ctx.
+        None, None if no intercepted function exist.
+        fn, None if not ctx exists.
+    :rtype: tuple
     """
 
     function = _get_function(target)
 
-    result = getattr(function, _INTERCEPTED, None)
+    intercepted = getattr(function, _INTERCEPTED, None)
+    ctx = getattr(function, _INTERCEPTED_CTX, None)
 
-    return result
+    return intercepted, ctx
 
 
 def _get_function(target):
@@ -660,7 +720,8 @@ def _get_function(target):
         - function: function.
         - else: __call__ method.
 
-    :raises: TypeError if target is not callable.
+    :raises: TypeError if target is not callable or is a class without a
+        constructor.
     """
 
     result = None
@@ -673,7 +734,11 @@ def _get_function(target):
     if isclass(target):
         constructor = getattr(
             target, '__init__',  # try to find __init__
-            getattr(target, '__new__', target))  # try to find __new__ | target
+            getattr(target, '__new__', None))  # try to find __new__ | target
+        # if no constructor exists
+        if constructor is None:
+            raise TypeError(
+                'class {0} does not have a constructor'.format(target))
         # if constructor is a method, return function method
         if ismethod(constructor):
             result = constructor.__func__

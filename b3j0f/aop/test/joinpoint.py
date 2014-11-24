@@ -32,11 +32,288 @@ from b3j0f.aop.joinpoint import (
     Joinpoint,
     is_intercepted, get_intercepted,
     _apply_interception, _unapply_interception,
-    _get_function
+    _get_function, find_ctx
 )
 from b3j0f.utils.version import PY3, PY2
 
 from types import MethodType, FunctionType
+
+
+class FindCTXTest(UTCase):
+    """
+    Test find_ctx function.
+    """
+
+    def test_none(self):
+
+        ctx = find_ctx(None)
+        self.assertIsNone(ctx)
+
+    def test_class_method(self):
+
+        ctx = find_ctx(FindCTXTest.test_class_method)
+        if PY2:
+            self.assertIs(ctx, FindCTXTest)
+        elif PY3:
+            self.assertIsNone(ctx)
+        else:
+            raise NotImplementedError('Not implemented for python < 2 or > 3')
+
+    def test_instance_method(self):
+
+        ctx = find_ctx(FindCTXTest.test_instance_method)
+        self.assertIs(ctx, FindCTXTest)
+
+    def test_function(self):
+
+        def test():
+            pass
+
+        ctx = find_ctx(test)
+        self.assertIsNone(ctx)
+
+
+class JoinpointProceedingTest(UTCase):
+    """
+    Test to apply joinpoint poincut on any kinf of elements and parameters.
+    """
+
+    def setUp(self):
+        """
+        Create a default joinpoint with self joinpoint_proceeding such as the
+        only one advice and an integer count attribute equals 0.
+        """
+
+        self.joinpoint = Joinpoint(advices=[self.joinpoint_proceeding])
+
+        self.count = 0
+
+    def joinpoint_proceeding(self, jp):
+        """
+        Base joinpoint proceeding which increments self count and return the
+        proceeding result.
+
+        :param Joinpoint jp: joinpoint to proceed.
+        :return: joinpoint proceeding.
+        """
+        self.count += 1
+
+        result = jp.proceed()
+
+        self.count += 2
+
+        return result
+
+    def _test_joinpoint_proceeding(
+        self,
+        target, ctx=None, expected_result=None, elt=None,
+        args=(), kwargs={}
+    ):
+        """
+        Do a serie of tests on joinpoint proceeding related to input target.
+
+        All targets may return result if not None, or themself.
+
+        :param callable target: callable target to intercept.
+        :param expected_result: target call result.
+        :param elt: element to call if not None.
+        :param args: target call var args.
+        :param kwargs: target call keywords.
+        """
+
+        # check init context
+        self.assertEqual(self.count, 0)
+        # start to apply pointcut on joinpoint
+        self.joinpoint.set_target(target, ctx=ctx)
+        # update target with interception
+        jp_interception = self.joinpoint._interception
+        # call target
+        result = jp_interception(*args, **kwargs)
+        # compare result with target
+        if expected_result is None:
+            expected_result = JoinpointProceedingTest
+        self.assertEqual(result, expected_result)
+        # compare count with before and after interception
+        self.assertEqual(self.count, 3)
+        # do the test a second time
+        result = jp_interception(*args, **kwargs)
+        # compare result with interception
+        self.assertEqual(result, expected_result)
+        # compare count with before and after interception
+        self.assertEqual(self.count, 6)
+
+    def test_namespace(self):
+        """
+        Test to intercept a namespace.
+        """
+
+        class Test:
+            pass
+
+        if PY2:
+            self.assertRaises(TypeError, self._test_joinpoint_proceeding, Test)
+        else:
+            self._test_joinpoint_proceeding(Test)
+
+    def test_instance_method(self):
+        """
+        Test to intercept a method
+        """
+
+        class Test(object):
+            def test(self):
+                return JoinpointProceedingTest
+
+        test = Test()
+
+        self._test_joinpoint_proceeding(test.test)
+
+    def test_builtin(self):
+        """
+        Test to intercept a builtin.
+        """
+
+        self._test_joinpoint_proceeding(max, expected_result=3, args=[2, 3])
+
+    def test_function(self):
+        """
+        Test to intercept a function.
+        """
+
+        def test():
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test)
+
+    def test_function_params(self):
+        """
+        Test to intercept a function with params.
+        """
+
+        def test(a, b):
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test, args=[1, 2])
+
+    def test_function_default_params(self):
+        """
+        Test to intercept a function with default params.
+        """
+
+        def test(a, b=None):
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test, kwargs={'a': 1})
+
+    def test_function_closure(self):
+        """
+        Test to intercept a function with closure.
+        """
+
+        closure = 1
+
+        def test():
+            return closure
+
+        self._test_joinpoint_proceeding(test, expected_result=closure)
+
+    def test_function_args(self):
+        """
+        Test to intercept a function with var args.
+        """
+
+        def test(*args):
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test)
+
+    def test_function_args_params(self):
+        """
+        Test to intercept a function with var args and params.
+        """
+
+        def test(a, b=1, *args):
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test, args=[1])
+
+    def test_function_args_params_closure(self):
+        """
+        Test to intercept a function with var args and params an closure.
+        """
+
+        closure = 0
+
+        def test(a, b=1, *args):
+            return closure
+
+        self._test_joinpoint_proceeding(
+            test, args=[2], expected_result=closure)
+
+    def test_function_kwargs(self):
+        """
+        Test to intercept a function with kwargs.
+        """
+
+        def test(**kwargs):
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test)
+
+    def test_function_kwargs_params(self):
+        """
+        Test to intercept a function with kwargs and params.
+        """
+
+        def test(a, b=1, **kwargs):
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test, kwargs={'a': 1})
+
+    def test_function_kwargs_params_closure(self):
+        """
+        Test to intercept a function with kwargs and params.
+        """
+
+        closure = 0
+
+        def test(a, b=1, **kwargs):
+            return closure
+
+        self._test_joinpoint_proceeding(test, expected_result=0, args=[1])
+
+    def test_function_args_kwargs(self):
+        """
+        Test to intercept a function with var args and kwargs.
+        """
+
+        def test(*args, **kwargs):
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test)
+
+    def test_function_args_kwargs_params(self):
+        """
+        Test to intercept a function with var args, kwargs and params.
+        """
+
+        def test(a, b=1, *args, **kwargs):
+            return JoinpointProceedingTest
+
+        self._test_joinpoint_proceeding(test, args=[1])
+
+    def test_function_args_kwargs_params_closure(self):
+        """
+        Test to intercept a function with var args, kwargs, params and closure.
+        """
+
+        closure = 0
+
+        def test(a, b=1, *args, **kwargs):
+            return closure
+
+        self._test_joinpoint_proceeding(
+            test, args=[1], expected_result=closure)
 
 
 class JoinpointTest(UTCase):
@@ -102,11 +379,12 @@ class GetFunctionTest(UTCase):
         class A:
             pass
 
-        func = _get_function(A)
-
-        _function = A if PY2 else A.__init__
-
-        self.assertEqual(func, _function)
+        if PY2:
+            self.assertRaises(TypeError, _get_function, A)
+        else:
+            func = _get_function(A)
+            _function = A if PY2 else A.__init__
+            self.assertEqual(func, _function)
 
     def test_builtin(self):
 
@@ -165,21 +443,22 @@ class GetFunctionTest(UTCase):
 class ApplyInterceptionTest(UTCase):
 
     def test_function(self):
+
         def function():
             pass
 
         __code__ = function.__code__
 
         self.assertFalse(is_intercepted(function))
-        self.assertIsNone(get_intercepted(min))
+        self.assertEqual(get_intercepted(function), (None, None))
 
-        interception, intercepted = _apply_interception(
+        interception, intercepted, ctx = _apply_interception(
             function, lambda x: None)
 
         self.assertTrue(isinstance(interception, FunctionType))
 
         self.assertIs(interception, function)
-        self.assertIs(get_intercepted(interception), intercepted)
+        self.assertEqual(get_intercepted(interception), (intercepted, ctx))
         self.assertTrue(is_intercepted(interception))
         self.assertIsNot(interception.__code__, __code__)
         self.assertIs(intercepted.__code__, __code__)
@@ -189,19 +468,19 @@ class ApplyInterceptionTest(UTCase):
         self.assertFalse(is_intercepted(function))
         self.assertIs(interception, function)
         self.assertIs(function.__code__, __code__)
-        self.assertIsNone(get_intercepted(function))
+        self.assertEqual(get_intercepted(function), (None, None))
 
     def test_method(self):
         class A(object):
             def method(self):
                 pass
 
-        self.assertIsNone(get_intercepted(A.method))
+        self.assertEqual(get_intercepted(A.method), (None, None))
         self.assertFalse(is_intercepted(A.method))
 
         interception_fn = lambda: None
 
-        interception, intercepted = _apply_interception(
+        interception, intercepted, ctx = _apply_interception(
             target=A.method,
             interception_fn=interception_fn,
             ctx=A)
@@ -211,12 +490,12 @@ class ApplyInterceptionTest(UTCase):
         self.assertTrue(isinstance(interception, joinpoint_type))
         self.assertTrue(is_intercepted(A.method))
         self.assertEqual(interception, A.method)
-        self.assertIs(intercepted, get_intercepted(A.method))
+        self.assertEqual((intercepted, ctx), get_intercepted(A.method))
 
         _unapply_interception(target=A.method, ctx=A)
 
         self.assertFalse(is_intercepted(A.method))
-        self.assertIsNone(get_intercepted(A.method))
+        self.assertEqual(get_intercepted(A.method), (None, None))
 
     def test_class_container(self):
         class A(object):
@@ -267,49 +546,24 @@ class ApplyInterceptionTest(UTCase):
 
         function = min
 
-        self.assertIsNone(get_intercepted(min))
+        self.assertEqual(get_intercepted(min), (None, None))
         self.assertFalse(is_intercepted(min))
 
-        interception, intercepted = _apply_interception(min, lambda: None)
+        interception, intercepted, ctx = _apply_interception(min, lambda: None)
 
         self.assertTrue(isinstance(interception, FunctionType))
 
         self.assertTrue(is_intercepted(min))
         self.assertIs(interception, min)
         self.assertIsNot(min, function)
-        self.assertIs(get_intercepted(min), intercepted)
+        self.assertEqual(get_intercepted(min), (intercepted, None))
 
         _unapply_interception(interception)
 
         self.assertFalse(is_intercepted(min))
         self.assertIsNot(interception, min)
         self.assertIs(min, function)
-        self.assertIsNone(get_intercepted(min))
-
-    def test_class(self):
-
-        self.assertFalse(is_intercepted(ApplyInterceptionTest))
-        self.assertIsNone(get_intercepted(ApplyInterceptionTest))
-
-        func = (lambda: None)
-
-        __init__ = ApplyInterceptionTest.__init__
-
-        interception, intercepted = _apply_interception(
-            ApplyInterceptionTest,
-            func
-        )
-
-        self.assertEqual(intercepted, __init__)
-        self.assertEqual(interception, ApplyInterceptionTest.__init__)
-
-        self.assertTrue(is_intercepted(ApplyInterceptionTest))
-        self.assertIs(get_intercepted(ApplyInterceptionTest), intercepted)
-
-        _unapply_interception(ApplyInterceptionTest)
-
-        self.assertFalse(is_intercepted(ApplyInterceptionTest))
-        self.assertIsNone(get_intercepted(ApplyInterceptionTest))
+        self.assertEqual(get_intercepted(min), (None, None))
 
 
 if __name__ == '__main__':
