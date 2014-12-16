@@ -33,14 +33,14 @@ from os.path import abspath, dirname, join
 _path = dirname(abspath(__file__))
 
 # get long description
-with open(join(_path, 'README')) as f:
+with open(join(_path, 'README.rst')) as f:
     desc = f.read()
 
 dependencies = ['b3j0f.utils']
 
 setup(
     name='b3j0f.aop',
-    version='0.5.0',
+    version='0.5.1',
     install_requires=dependencies,
     packages=find_packages(exclude=['test.*', '*.test.*']),
     author="b3j0f",
@@ -50,11 +50,22 @@ setup(
     url='https://github.com/mrbozzo/aop/',
     license='MIT License',
     classifiers=[
-        "Development Status :: 1 - Planning",
+        "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: French",
         "Operating System :: OS Independent",
+        "Topic :: Utilities",
+        "Topic :: Software Development",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
         "Programming Language :: Python",
+        "Programming Language :: Python :: 2.6",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.0",
+        "Programming Language :: Python :: 3.1",
+        "Programming Language :: Python :: 3.2",
+        "Programming Language :: Python :: 3.3",
+        "Programming Language :: Python :: 3.4"
     ],
     test_suite='b3j0f'
 )

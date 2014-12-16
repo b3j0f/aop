@@ -1,6 +1,9 @@
 b3j0f.aop: Aspect Oriented Programming for Python
 =================================================
 
+.. image:: https://travis-ci.org/b3j0f/aop.svg?branch=master
+    :target: https://travis-ci.org/b3j0f/aop
+
 This library aims to improve python aspects oriented programming efficiency among several existing library.
 
 Installation

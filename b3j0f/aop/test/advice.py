@@ -33,36 +33,6 @@ from b3j0f.aop.advice import Advice, weave, unweave, weave_on, _Joinpoint
 from time import sleep
 
 
-class AdvicesExecutionTest(UTCase):
-
-    def setUp(self):
-
-        def a():
-            return 2
-
-        self.je = _Joinpoint(joinpoint=a)
-
-    def test_execution(self):
-
-        result = self.je.execute()
-
-        self.assertEqual(result, 2, 'check _Joinpoint proceed')
-
-    def test_add_advices(self):
-
-        def advice(jpe):
-
-            proceed = jpe.execute()
-
-            return proceed, 3
-
-        self.je.advices = [advice]
-
-        result = self.je()
-
-        self.assertEqual(result, (2, 3), 'check _Joinpoint proceed')
-
-
 class AdviceTest(UTCase):
 
     def setUp(self):
@@ -84,20 +54,20 @@ class WeaveTest(UTCase):
 
         self.count = 0
 
-    def advicesexecutor(self, advicesexecutor):
+    def joinpoint(self, joinpoint):
         """
         Default interceptor which increments self count
         """
 
         self.count += 1
-        return advicesexecutor.execute()
+        return joinpoint.proceed()
 
     def test_builtin(self):
 
         weave(
-            joinpoint=min,
-            advices=[self.advicesexecutor, self.advicesexecutor])
-        weave(joinpoint=min, advices=self.advicesexecutor)
+            target=min,
+            advices=[self.joinpoint, self.joinpoint])
+        weave(target=min, advices=self.joinpoint)
 
         min(5, 2)
 
@@ -119,10 +89,10 @@ class WeaveTest(UTCase):
                 pass
 
         weave(
-            joinpoint=A.a,
-            advices=[self.advicesexecutor, self.advicesexecutor])
-        weave(joinpoint=A.__init__, advices=self.advicesexecutor)
-        weave(joinpoint=A, advices=self.advicesexecutor, pointcut='__init__')
+            target=A.a,
+            advices=[self.joinpoint, self.joinpoint])
+        weave(target=A.__init__, advices=self.joinpoint)
+        weave(target=A, advices=self.joinpoint, pointcut='__init__')
 
         a = A()
         a.a()
@@ -143,11 +113,11 @@ class WeaveTest(UTCase):
             pass
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
         f()
 
         self.assertEqual(self.count, 3)
@@ -163,11 +133,11 @@ class WeaveTest(UTCase):
         f = lambda: None
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
         f()
 
         self.assertEqual(self.count, 3)
@@ -184,11 +154,11 @@ class WeaveTest(UTCase):
             pass
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
         f(1)
 
         self.assertEqual(self.count, 3)
@@ -205,11 +175,11 @@ class WeaveTest(UTCase):
             pass
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
         f()
 
         self.assertEqual(self.count, 3)
@@ -226,11 +196,11 @@ class WeaveTest(UTCase):
             pass
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
 
         f(1)
 
@@ -248,11 +218,11 @@ class WeaveTest(UTCase):
             pass
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
         f()
 
         self.assertEqual(self.count, 3)
@@ -269,11 +239,11 @@ class WeaveTest(UTCase):
             pass
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
         f(1)
 
         self.assertEqual(self.count, 3)
@@ -290,11 +260,11 @@ class WeaveTest(UTCase):
             pass
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
         f(1)
 
         self.assertEqual(self.count, 3)
@@ -310,20 +280,20 @@ class WeaveTest(UTCase):
         Run assertion tests on input cls
         """
 
-        weave(joinpoint=cls, advices=self.advicesexecutor, pointcut='__init__')
+        weave(target=cls, advices=self.joinpoint, pointcut='__init__')
         weave(
-            joinpoint=cls,
-            advices=[self.advicesexecutor, self.advicesexecutor])
-        weave(joinpoint=cls.B,
-            advices=self.advicesexecutor, pointcut='__init__')
+            target=cls,
+            advices=[self.joinpoint, self.joinpoint])
+        weave(target=cls.B,
+            advices=self.joinpoint, pointcut='__init__')
         weave(
-            joinpoint=cls.B,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=cls.B,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=cls.C, advices=self.advicesexecutor, pointcut='__init__')
+            target=cls.C, advices=self.joinpoint, pointcut='__init__')
         weave(
-            joinpoint=cls.C,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=cls.C,
+            advices=[self.joinpoint, self.joinpoint])
 
         cls()
         cls.B()
@@ -388,11 +358,11 @@ class WeaveTest(UTCase):
         f = lambda: None
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
 
         for i in range(count):
             f()
@@ -407,11 +377,11 @@ class WeaveTest(UTCase):
         self.assertEqual(self.count, 3 * count)
 
         weave(
-            joinpoint=f,
-            advices=[self.advicesexecutor, self.advicesexecutor])
+            target=f,
+            advices=[self.joinpoint, self.joinpoint])
         weave(
-            joinpoint=f,
-            advices=self.advicesexecutor)
+            target=f,
+            advices=self.joinpoint)
 
         for i in range(count):
             f()
@@ -430,9 +400,11 @@ class WeaveTest(UTCase):
         def test():
             pass
 
-        weave(joinpoint=test, advices=self.advicesexecutor, ttl=0.1)
+        weave(target=test, advices=self.joinpoint, ttl=0.1)
 
         test()
+
+        self.assertEqual(self.count, 1)
 
         sleep(0.2)
 
@@ -445,7 +417,7 @@ class WeaveTest(UTCase):
         def test():
             pass
 
-        _, timer = weave(joinpoint=test, advices=self.advicesexecutor, ttl=0.1)
+        _, timer = weave(target=test, advices=self.joinpoint, ttl=0.1)
 
         timer.cancel()
 
@@ -466,11 +438,11 @@ class WeaveTest(UTCase):
 
         self.assertEqual(BaseTest.test, Test.test)
 
-        weave(container=Test, joinpoint=Test.test, advices=lambda x: None)
+        weave(ctx=Test, target=Test.test, advices=lambda x: None)
 
         self.assertNotEqual(BaseTest.test, Test.test)
 
-        unweave(container=Test, joinpoint=Test.test)
+        unweave(ctx=Test, target=Test.test)
 
         self.assertEqual(BaseTest.test, Test.test)
 
@@ -492,7 +464,7 @@ class WeaveTest(UTCase):
 
         test = Test(self)
 
-        weave(container=Test, joinpoint=Test.test, advices=lambda x: None)
+        weave(ctx=Test, target=Test.test, advices=lambda x: None)
 
         basetest.test()
 
@@ -502,7 +474,7 @@ class WeaveTest(UTCase):
 
         self.assertEqual(self.count, 1)
 
-        unweave(container=Test, joinpoint=Test.test)
+        unweave(ctx=Test, target=Test.test)
 
         basetest.test()
 
@@ -537,7 +509,7 @@ class WeaveTest(UTCase):
         basetest2.test()
         self.assertEqual(self.count, 4)
 
-        weave(joinpoint=test.test, advices=lambda ae: None)
+        weave(target=test.test, advices=lambda ae: None)
 
         test.test()
         test2.test()
@@ -547,12 +519,12 @@ class WeaveTest(UTCase):
         basetest2.test()
         self.assertEqual(self.count, 7)
 
-        unweave(joinpoint=test.test)
+        unweave(target=test.test)
 
         test.test()
         self.assertEqual(self.count, 8)
 
-        weave(joinpoint=basetest.test, advices=lambda ae: None)
+        weave(target=basetest.test, advices=lambda ae: None)
 
         test.test()
         test2.test()
@@ -562,7 +534,7 @@ class WeaveTest(UTCase):
         basetest.test()
         self.assertEqual(self.count, 11)
 
-        unweave(joinpoint=basetest.test)
+        unweave(target=basetest.test)
 
         test.test()
         test2.test()
@@ -570,7 +542,7 @@ class WeaveTest(UTCase):
         basetest.test()
         self.assertEqual(self.count, 15)
 
-        weave(joinpoint=BaseTest.test, advices=lambda ae: None)
+        weave(target=BaseTest.test, advices=lambda ae: None)
 
         test.test()
         test2.test()
@@ -578,7 +550,7 @@ class WeaveTest(UTCase):
         basetest.test()
         self.assertEqual(self.count, 15)
 
-        unweave(joinpoint=BaseTest.test)
+        unweave(target=BaseTest.test)
 
     def test_inherited_instance_method_with_container(self):
 
@@ -605,7 +577,7 @@ class WeaveTest(UTCase):
         basetest2.test()
         self.assertEqual(self.count, 4)
 
-        weave(joinpoint=test.test, advices=lambda ae: None, container=test)
+        weave(target=test.test, advices=lambda ae: None, ctx=test)
 
         test.test()
         test2.test()
@@ -615,14 +587,14 @@ class WeaveTest(UTCase):
         basetest2.test()
         self.assertEqual(self.count, 7)
 
-        unweave(joinpoint=test.test, container=test)
+        unweave(target=test.test, ctx=test)
 
         test.test()
         self.assertEqual(self.count, 8)
 
         weave(
-            joinpoint=basetest.test,
-            advices=lambda ae: None, container=basetest)
+            target=basetest.test,
+            advices=lambda ae: None, ctx=basetest)
 
         test.test()
         test2.test()
@@ -632,7 +604,7 @@ class WeaveTest(UTCase):
         basetest.test()
         self.assertEqual(self.count, 11)
 
-        unweave(joinpoint=basetest.test, container=basetest)
+        unweave(target=basetest.test, ctx=basetest)
 
         test.test()
         test2.test()
@@ -641,9 +613,9 @@ class WeaveTest(UTCase):
         self.assertEqual(self.count, 15)
 
         weave(
-            joinpoint=BaseTest.test,
+            target=BaseTest.test,
             advices=lambda ae: None,
-            container=BaseTest)
+            ctx=BaseTest)
 
         test.test()
         test2.test()
@@ -651,7 +623,7 @@ class WeaveTest(UTCase):
         basetest.test()
         self.assertEqual(self.count, 15)
 
-        unweave(joinpoint=BaseTest.test, container=BaseTest)
+        unweave(target=BaseTest.test, ctx=BaseTest)
 
     def test_instance_method(self):
 
@@ -663,7 +635,7 @@ class WeaveTest(UTCase):
 
         self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
 
-        weave(joinpoint=a.__call__, advices=lambda ae: None)
+        weave(target=a.__call__, advices=lambda ae: None)
 
         self.assertNotEqual(a.__call__, A.__call__)
 
@@ -671,7 +643,7 @@ class WeaveTest(UTCase):
 
         self.assertEqual(result, None)
 
-        unweave(joinpoint=a.__call__)
+        unweave(target=a.__call__)
 
         self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
 
@@ -689,7 +661,7 @@ class WeaveTest(UTCase):
 
         self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
 
-        weave(joinpoint=a, pointcut='__call__', advices=lambda ae: None)
+        weave(target=a, pointcut='__call__', advices=lambda ae: None)
 
         self.assertNotEqual(a.__call__, A.__call__)
 
@@ -697,7 +669,7 @@ class WeaveTest(UTCase):
 
         self.assertEqual(result, None)
 
-        unweave(joinpoint=a)
+        unweave(target=a)
 
         self.assertEqual(a.__call__, A.__call__)
 
@@ -712,18 +684,18 @@ class WeaveOnTest(UTCase):
 
         self.count = 0
 
-    def advicesexecutor(self, advicesexecutor):
+    def joinpoint(self, joinpoint):
         """
         Default interceptor which increments self count
         """
 
         self.count += 1
-        return advicesexecutor.execute()
+        return joinpoint.proceed()
 
     def test_builtin(self):
 
-        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(min)
-        weave_on(advices=self.advicesexecutor)(min)
+        weave_on(advices=[self.joinpoint, self.joinpoint])(min)
+        weave_on(advices=self.joinpoint)(min)
 
         min(5, 2)
 
@@ -737,14 +709,14 @@ class WeaveOnTest(UTCase):
 
     def test_method(self):
 
-        @weave_on(self.advicesexecutor, pointcut='__init__')
+        @weave_on(self.joinpoint, pointcut='__init__')
         class A():
 
-            @weave_on(self.advicesexecutor)
+            @weave_on(self.joinpoint)
             def __init__(self):
                 pass
 
-            @weave_on([self.advicesexecutor, self.advicesexecutor])
+            @weave_on([self.joinpoint, self.joinpoint])
             def a(self):
                 pass
 
@@ -755,8 +727,8 @@ class WeaveOnTest(UTCase):
 
     def test_function(self):
 
-        @weave_on(self.advicesexecutor)
-        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        @weave_on(self.joinpoint)
+        @weave_on([self.joinpoint, self.joinpoint])
         def f():
             pass
 
@@ -768,8 +740,8 @@ class WeaveOnTest(UTCase):
 
         f = lambda: None
 
-        weave_on(self.advicesexecutor)(f)
-        weave_on([self.advicesexecutor, self.advicesexecutor])(f)
+        weave_on(self.joinpoint)(f)
+        weave_on([self.joinpoint, self.joinpoint])(f)
 
         f()
 
@@ -777,8 +749,8 @@ class WeaveOnTest(UTCase):
 
     def test_function_args(self):
 
-        @weave_on(self.advicesexecutor)
-        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        @weave_on(self.joinpoint)
+        @weave_on([self.joinpoint, self.joinpoint])
         def f(a):
             pass
 
@@ -788,8 +760,8 @@ class WeaveOnTest(UTCase):
 
     def test_function_varargs(self):
 
-        @weave_on(self.advicesexecutor)
-        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        @weave_on(self.joinpoint)
+        @weave_on([self.joinpoint, self.joinpoint])
         def f(*args):
             pass
 
@@ -799,8 +771,8 @@ class WeaveOnTest(UTCase):
 
     def test_function_args_varargs(self):
 
-        @weave_on(self.advicesexecutor)
-        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        @weave_on(self.joinpoint)
+        @weave_on([self.joinpoint, self.joinpoint])
         def f(a, **args):
             pass
 
@@ -810,8 +782,8 @@ class WeaveOnTest(UTCase):
 
     def test_function_kwargs(self):
 
-        @weave_on([self.advicesexecutor, self.advicesexecutor])
-        @weave_on(self.advicesexecutor)
+        @weave_on([self.joinpoint, self.joinpoint])
+        @weave_on(self.joinpoint)
         def f(**kwargs):
             pass
 
@@ -821,8 +793,8 @@ class WeaveOnTest(UTCase):
 
     def test_function_args_kwargs(self):
 
-        @weave_on(self.advicesexecutor)
-        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        @weave_on(self.joinpoint)
+        @weave_on([self.joinpoint, self.joinpoint])
         def f(a, **args):
             pass
 
@@ -832,8 +804,8 @@ class WeaveOnTest(UTCase):
 
     def test_function_args_varargs_kwargs(self):
 
-        @weave_on(self.advicesexecutor)
-        @weave_on([self.advicesexecutor, self.advicesexecutor])
+        @weave_on(self.joinpoint)
+        @weave_on([self.joinpoint, self.joinpoint])
         def f(a, *args, **kwargs):
             pass
 
@@ -846,12 +818,12 @@ class WeaveOnTest(UTCase):
         Run assertion tests on input cls
         """
 
-        weave_on(advices=self.advicesexecutor, pointcut='__init__')(cls)
-        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(cls)
-        weave_on(advices=self.advicesexecutor, pointcut='__init__')(cls.B)
-        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(cls.B)
-        weave_on(advices=self.advicesexecutor, pointcut='__init__')(cls.C)
-        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(cls.C)
+        weave_on(advices=self.joinpoint, pointcut='__init__')(cls)
+        weave_on(advices=[self.joinpoint, self.joinpoint])(cls)
+        weave_on(advices=self.joinpoint, pointcut='__init__')(cls.B)
+        weave_on(advices=[self.joinpoint, self.joinpoint])(cls.B)
+        weave_on(advices=self.joinpoint, pointcut='__init__')(cls.C)
+        weave_on(advices=[self.joinpoint, self.joinpoint])(cls.C)
 
         cls()
         cls.B()
@@ -897,8 +869,8 @@ class WeaveOnTest(UTCase):
 
         f = lambda: None
 
-        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(f)
-        weave_on(advices=self.advicesexecutor)(f)
+        weave_on(advices=[self.joinpoint, self.joinpoint])(f)
+        weave_on(advices=self.joinpoint)(f)
 
         for i in range(count):
             f()
@@ -912,8 +884,8 @@ class WeaveOnTest(UTCase):
 
         self.assertEqual(self.count, 3 * count)
 
-        weave_on(advices=[self.advicesexecutor, self.advicesexecutor])(f)
-        weave_on(advices=self.advicesexecutor)(f)
+        weave_on(advices=[self.joinpoint, self.joinpoint])(f)
+        weave_on(advices=self.joinpoint)(f)
 
         for i in range(count):
             f()
@@ -932,7 +904,7 @@ class WeaveOnTest(UTCase):
         def test():
             pass
 
-        weave_on(advices=self.advicesexecutor, ttl=0.1)(test)
+        weave_on(advices=self.joinpoint, ttl=0.1)(test)
 
         test()
 

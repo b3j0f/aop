@@ -536,10 +536,8 @@ def _apply_interception(
             interception_fn.__code__, target_fn.__code__
 
     else:
-        # get target function
-        target_function = _get_function(target)
         # get target name
-        target_name = target_function.__name__
+        target_name = target.__name__
         # get the right intercepted
         intercepted = getattr(ctx, target_name)
 
@@ -587,8 +585,6 @@ def _unapply_interception(target, ctx=None):
     :param ctx: target ctx.
     """
 
-    joinpoint_function = _get_function(target)
-
     # try to get the right ctx
     if ctx is None:
         ctx = find_ctx(elt=target)
@@ -602,6 +598,9 @@ def _unapply_interception(target, ctx=None):
 
     if intercepted is None:
         raise JoinpointError('{0} must be intercepted'.format(target))
+
+    # flag to deleting of joinpoint_function
+    del_joinpoint_function = False
 
     # if old target is a not modifiable resource
     if isbuiltin(intercepted):
@@ -622,49 +621,69 @@ def _unapply_interception(target, ctx=None):
                     target, module))
 
     elif ctx is None:
+        # get joinpoint function
+        joinpoint_function = _get_function(target)
         # update old code on target
         joinpoint_function.__code__ = intercepted.__code__
+        # ensure to delete joinpoint_function
+        del_joinpoint_function = True
 
     else:
-        # replace the old method/function
+        # flag for joinpoint recovering
+        recover = False
+        # get interception name in order to update/delete interception from ctx
         intercepted_name = intercepted.__name__
-        # new content to put in ctx
-        new_content = intercepted
+        # should we change of target or is it inherited ?
+        # get base ctx
+        base_ctx = ctx if isclass(ctx) else ctx.__class__
+        # get base ref
+        super_ref = super(base_ctx, ctx)
+        # get base interception
+        base_interception = getattr(super_ref, intercepted_name, None)
+        # if base interception does not exist
+        if base_interception is None:  # recover intercepted
+            recover = True
 
-        if ismethod(target):  # in creating eventually a new method
-            args = [new_content, ctx]
-            if PY2:  # if py2, specify the ctx class
-                # and unbound method type
-                if target.__self__ is None:
-                    args = [new_content, None, ctx]
+        else:
+            # get joinpoint_function
+            joinpoint_function = _get_function(target)
+            # get base function
+            base_function = _get_function(base_interception)
+            # is interception inherited ?
+            if base_function is joinpoint_function:
+                pass  # do nothing
+            # is intercepted inherited
+            elif base_function is intercepted:
+                # del interception
+                delattr(ctx, intercepted_name)
+                del_joinpoint_function = True
+            else:  # base function is something else
+                recover = True
 
-                else:  # or instance method
-                    args.append(ctx.__class__)
-            # instantiate a new method
-            new_content = MethodType(*args)
-        # change of content only if intercepted is not inherited
-        base_ctxs = ctx.__bases__ if isclass(ctx) else [ctx.__class__]
-        # check if content has to be deleted or changed after unapplication
-        del_content = False
-        # if base content exists
-        for base_ctx in base_ctxs:
-            if hasattr(base_ctx, intercepted_name):
-                base_content = getattr(base_ctx, intercepted_name)
-                # compare __dict__
-                if hasattr(base_content, '__dict__'):
-                    del_content = base_content.__dict__ is intercepted.__dict__
-                    if del_content:
-                        break
-        if del_content:
-            # remove inherited target from ctx
-            delattr(ctx, intercepted_name)
-        else:  # or put it in ctx
+        if recover:  # if recover is required
+            # new content to put in ctx
+            new_content = intercepted
+            if ismethod(target):  # in creating eventually a new method
+                args = [new_content, ctx]
+                if PY2:  # if py2, specify the ctx class
+                    # and unbound method type
+                    if target.__self__ is None:
+                        args = [new_content, None, ctx]
+                    else:  # or instance method
+                        args.append(ctx.__class__)
+                # instantiate a new method
+                new_content = MethodType(*args)
+            # update ctx with intercepted
             setattr(ctx, intercepted_name, new_content)
+            joinpoint_function = _get_function(target)
+            del_joinpoint_function = True
 
-    # delete _INTERCEPTED and _INTERCEPTED_CTX from joinpoint_function
-    delattr(joinpoint_function, _INTERCEPTED)
-    if hasattr(joinpoint_function, _INTERCEPTED_CTX):
-        delattr(joinpoint_function, _INTERCEPTED_CTX)
+    if del_joinpoint_function:
+        # delete _INTERCEPTED and _INTERCEPTED_CTX from joinpoint_function
+        delattr(joinpoint_function, _INTERCEPTED)
+        if hasattr(joinpoint_function, _INTERCEPTED_CTX):
+            delattr(joinpoint_function, _INTERCEPTED_CTX)
+        del joinpoint_function
 
 
 def is_intercepted(target):

@@ -61,8 +61,8 @@ class FindCTXTest(UTCase):
 
     def test_instance_method(self):
 
-        ctx = find_ctx(FindCTXTest.test_instance_method)
-        self.assertIs(ctx, FindCTXTest)
+        ctx = find_ctx(self.test_instance_method)
+        self.assertIs(ctx, self)
 
     def test_function(self):
 
@@ -150,10 +150,7 @@ class JoinpointProceedingTest(UTCase):
         class Test:
             pass
 
-        if PY2:
-            self.assertRaises(TypeError, self._test_joinpoint_proceeding, Test)
-        else:
-            self._test_joinpoint_proceeding(Test)
+        self.assertRaises(TypeError, self._test_joinpoint_proceeding, Test)
 
     def test_instance_method(self):
         """
@@ -564,6 +561,152 @@ class ApplyInterceptionTest(UTCase):
         self.assertIsNot(interception, min)
         self.assertIs(min, function)
         self.assertEqual(get_intercepted(min), (None, None))
+
+    def test_inheritance(self):
+        """
+        Test interception in an inheritance context.
+        """
+
+        def new_test():
+            def test():
+                pass
+            return test
+
+        def test():
+            pass
+
+        class Test0(object):
+            def test(self):
+                pass
+
+        class Test1(Test0):
+            pass
+
+        class Test2(Test1):
+            def test(self):
+                pass
+
+        test0 = Test0()
+        test1 = Test1()
+        test1.test = test
+        test2 = Test2()
+
+        # check for inherited method
+        _apply_interception(Test1.test, ctx=Test1, interception_fn=new_test())
+        self.assertFalse(is_intercepted(Test0.test))
+        self.assertTrue(is_intercepted(Test1.test))
+        self.assertFalse(is_intercepted(Test2.test))
+        self.assertFalse(is_intercepted(test0.test))
+        self.assertFalse(is_intercepted(test1.test))
+        self.assertFalse(is_intercepted(test2.test))
+
+        # check for base method
+        _apply_interception(Test0.test, ctx=Test0, interception_fn=new_test())
+        self.assertTrue(is_intercepted(Test0.test))
+        self.assertTrue(is_intercepted(Test1.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(Test1.test))
+        self.assertIsNot(Test0.test.__dict__, Test1.test.__dict__)
+        self.assertFalse(is_intercepted(Test2.test))
+        self.assertTrue(is_intercepted(test0.test))
+        self.assertIs(_get_function(Test0.test), _get_function(test0.test))
+        self.assertFalse(is_intercepted(test1.test))
+        self.assertFalse(is_intercepted(test2.test))
+
+        # check for overriden method
+        _apply_interception(Test2.test, ctx=Test2, interception_fn=new_test())
+        self.assertTrue(is_intercepted(Test0.test))
+        self.assertTrue(is_intercepted(Test1.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(Test1.test))
+        self.assertIsNot(Test0.test.__dict__, Test1.test.__dict__)
+        self.assertTrue(is_intercepted(Test2.test))
+        self.assertIsNot(_get_function(Test1.test), _get_function(Test2.test))
+        self.assertIsNot(Test1.test.__dict__, Test2.test.__dict__)
+        self.assertTrue(is_intercepted(test0.test))
+        self.assertIs(_get_function(Test0.test), _get_function(test0.test))
+        self.assertFalse(is_intercepted(test1.test))
+        self.assertTrue(is_intercepted(test2.test))
+        self.assertIs(_get_function(Test2.test), _get_function(test2.test))
+
+        # check for inherited instance method
+        _apply_interception(test0.test, interception_fn=new_test())
+        self.assertTrue(is_intercepted(Test0.test))
+        self.assertTrue(is_intercepted(Test1.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(Test1.test))
+        self.assertIsNot(Test0.test.__dict__, Test1.test.__dict__)
+        self.assertTrue(is_intercepted(Test2.test))
+        self.assertIsNot(_get_function(Test1.test), _get_function(Test2.test))
+        self.assertIsNot(Test1.test.__dict__, Test2.test.__dict__)
+        self.assertTrue(is_intercepted(test0.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(test0.test))
+        self.assertIsNot(test0.test.__dict__, Test0.test.__dict__)
+        self.assertFalse(is_intercepted(test1.test))
+        self.assertTrue(is_intercepted(test2.test))
+        self.assertIs(_get_function(Test2.test), _get_function(test2.test))
+
+        # check for overriden instance method
+        _apply_interception(test1.test, interception_fn=new_test())
+        self.assertTrue(is_intercepted(Test0.test))
+        self.assertTrue(is_intercepted(Test1.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(Test1.test))
+        self.assertIsNot(Test0.test.__dict__, Test1.test.__dict__)
+        self.assertTrue(is_intercepted(Test2.test))
+        self.assertIsNot(_get_function(Test1.test), _get_function(Test2.test))
+        self.assertIsNot(Test1.test.__dict__, Test2.test.__dict__)
+        self.assertTrue(is_intercepted(test0.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(test0.test))
+        self.assertIsNot(test0.test.__dict__, Test0.test.__dict__)
+        self.assertTrue(is_intercepted(test1.test))
+        self.assertIsNot(_get_function(Test1.test), _get_function(test1.test))
+        self.assertIsNot(test1.test.__dict__, Test1.test.__dict__)
+        self.assertTrue(is_intercepted(test2.test))
+        self.assertIs(_get_function(Test2.test), _get_function(test2.test))
+
+        # check to unapply base class method
+        _unapply_interception(Test0.test, ctx=Test0)
+        self.assertFalse(is_intercepted(Test0.test))
+        self.assertTrue(is_intercepted(Test1.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(Test1.test))
+        self.assertIsNot(Test0.test.__dict__, Test1.test.__dict__)
+        self.assertTrue(is_intercepted(Test2.test))
+        self.assertIsNot(_get_function(Test1.test), _get_function(Test2.test))
+        self.assertIsNot(Test1.test.__dict__, Test2.test.__dict__)
+        self.assertTrue(is_intercepted(test0.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(test0.test))
+        self.assertIsNot(test0.test.__dict__, Test0.test.__dict__)
+        self.assertTrue(is_intercepted(test1.test))
+        self.assertIsNot(_get_function(Test1.test), _get_function(test1.test))
+        self.assertIsNot(test1.test.__dict__, Test1.test.__dict__)
+        self.assertTrue(is_intercepted(test2.test))
+        self.assertIs(_get_function(Test2.test), _get_function(test2.test))
+
+        # check to unapply overriden method
+        _unapply_interception(Test2.test, ctx=Test2)
+        self.assertFalse(is_intercepted(Test0.test))
+        self.assertTrue(is_intercepted(Test1.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(Test1.test))
+        self.assertIsNot(Test0.test.__dict__, Test1.test.__dict__)
+        self.assertFalse(is_intercepted(Test2.test))
+        self.assertIsNot(_get_function(Test1.test), _get_function(Test2.test))
+        self.assertIsNot(Test1.test.__dict__, Test2.test.__dict__)
+        self.assertTrue(is_intercepted(test0.test))
+        self.assertIsNot(_get_function(Test0.test), _get_function(test0.test))
+        self.assertIsNot(test0.test.__dict__, Test0.test.__dict__)
+        self.assertTrue(is_intercepted(test1.test))
+        self.assertIsNot(_get_function(Test1.test), _get_function(test1.test))
+        self.assertIsNot(test1.test.__dict__, Test1.test.__dict__)
+        self.assertFalse(is_intercepted(test2.test))
+
+        _unapply_interception(test0.test)
+        self.assertFalse(is_intercepted(test0.test))
+
+        # check to unapply a method class which is overriden by an instance
+        _unapply_interception(Test1.test, ctx=Test1)
+        self.assertFalse(is_intercepted(Test1.test))
+        self.assertTrue(is_intercepted(test1.test))
+
+        # check to unapply an instance method
+        _unapply_interception(test1.test)
+        self.assertFalse(is_intercepted(test1.test))
 
 
 if __name__ == '__main__':
