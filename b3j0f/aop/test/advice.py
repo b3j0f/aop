@@ -28,7 +28,7 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
-from b3j0f.aop.advice import Advice, weave, unweave, weave_on, _Joinpoint
+from b3j0f.aop.advice import Advice, weave, unweave, weave_on
 
 from time import sleep
 
@@ -64,9 +64,7 @@ class WeaveTest(UTCase):
 
     def test_builtin(self):
 
-        weave(
-            target=min,
-            advices=[self.joinpoint, self.joinpoint])
+        weave(target=min, advices=[self.joinpoint, self.joinpoint])
         weave(target=min, advices=self.joinpoint)
 
         min(5, 2)
@@ -88,9 +86,7 @@ class WeaveTest(UTCase):
             def a(self):
                 pass
 
-        weave(
-            target=A.a,
-            advices=[self.joinpoint, self.joinpoint])
+        weave(target=A.a, advices=[self.joinpoint, self.joinpoint])
         weave(target=A.__init__, advices=self.joinpoint)
         weave(target=A, advices=self.joinpoint, pointcut='__init__')
 
@@ -112,12 +108,8 @@ class WeaveTest(UTCase):
         def f():
             pass
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
         f()
 
         self.assertEqual(self.count, 3)
@@ -132,12 +124,8 @@ class WeaveTest(UTCase):
 
         f = lambda: None
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
         f()
 
         self.assertEqual(self.count, 3)
@@ -153,12 +141,8 @@ class WeaveTest(UTCase):
         def f(a):
             pass
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
         f(1)
 
         self.assertEqual(self.count, 3)
@@ -174,12 +158,8 @@ class WeaveTest(UTCase):
         def f(*args):
             pass
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
         f()
 
         self.assertEqual(self.count, 3)
@@ -195,12 +175,8 @@ class WeaveTest(UTCase):
         def f(a, **args):
             pass
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
 
         f(1)
 
@@ -217,12 +193,8 @@ class WeaveTest(UTCase):
         def f(**kwargs):
             pass
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
         f()
 
         self.assertEqual(self.count, 3)
@@ -238,12 +210,8 @@ class WeaveTest(UTCase):
         def f(a, **args):
             pass
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
         f(1)
 
         self.assertEqual(self.count, 3)
@@ -259,12 +227,8 @@ class WeaveTest(UTCase):
         def f(a, *args, **kwargs):
             pass
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
         f(1)
 
         self.assertEqual(self.count, 3)
@@ -281,43 +245,36 @@ class WeaveTest(UTCase):
         """
 
         weave(target=cls, advices=self.joinpoint, pointcut='__init__')
-        weave(
-            target=cls,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(target=cls.B,
-            advices=self.joinpoint, pointcut='__init__')
-        weave(
-            target=cls.B,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=cls.C, advices=self.joinpoint, pointcut='__init__')
-        weave(
-            target=cls.C,
-            advices=[self.joinpoint, self.joinpoint])
+        weave(target=cls, advices=[self.joinpoint, self.joinpoint])
+        weave(target=cls.B, advices=self.joinpoint, pointcut='__init__')
+        weave(target=cls.B, advices=[self.joinpoint, self.joinpoint])
+        weave(target=cls.C, advices=self.joinpoint, pointcut='__init__')
+        weave(target=cls.C, advices=[self.joinpoint, self.joinpoint])
 
         cls()
+        self.assertEqual(self.count, 3)
         cls.B()
-        cls.C()
-
         self.assertEqual(self.count, 6)
+        cls.C()
+        self.assertEqual(self.count, 9)
 
         unweave(cls)
 
         cls()
 
-        self.assertEqual(self.count, 6)
+        self.assertEqual(self.count, 9)
 
         unweave(cls.B)
 
         cls.B()
 
-        self.assertEqual(self.count, 6)
+        self.assertEqual(self.count, 9)
 
         unweave(cls.C)
 
         cls.C()
 
-        self.assertEqual(self.count, 6)
+        self.assertEqual(self.count, 9)
 
     def test_class(self):
 
@@ -357,12 +314,8 @@ class WeaveTest(UTCase):
 
         f = lambda: None
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
 
         for i in range(count):
             f()
@@ -376,12 +329,8 @@ class WeaveTest(UTCase):
 
         self.assertEqual(self.count, 3 * count)
 
-        weave(
-            target=f,
-            advices=[self.joinpoint, self.joinpoint])
-        weave(
-            target=f,
-            advices=self.joinpoint)
+        weave(target=f, advices=[self.joinpoint, self.joinpoint])
+        weave(target=f, advices=self.joinpoint)
 
         for i in range(count):
             f()
@@ -592,9 +541,7 @@ class WeaveTest(UTCase):
         test.test()
         self.assertEqual(self.count, 8)
 
-        weave(
-            target=basetest.test,
-            advices=lambda ae: None, ctx=basetest)
+        weave(target=basetest.test, advices=lambda ae: None, ctx=basetest)
 
         test.test()
         test2.test()
@@ -612,10 +559,7 @@ class WeaveTest(UTCase):
         basetest.test()
         self.assertEqual(self.count, 15)
 
-        weave(
-            target=BaseTest.test,
-            advices=lambda ae: None,
-            ctx=BaseTest)
+        weave(target=BaseTest.test, advices=lambda ae: None, ctx=BaseTest)
 
         test.test()
         test2.test()

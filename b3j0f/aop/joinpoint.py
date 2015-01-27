@@ -33,8 +33,10 @@ functions allow to weave an interception function on any python callable
 object.
 """
 
-from inspect import isbuiltin, ismethod, isclass, isfunction, getmodule, \
-    getmembers, getfile, getargspec, isroutine
+from inspect import (
+    isbuiltin, ismethod, isclass, isfunction, getmodule, getmembers, getfile,
+    getargspec, isroutine
+)
 
 from opcode import opmap
 
@@ -282,6 +284,12 @@ class Joinpoint(object):
     def apply_pointcut(self, target, function=None, ctx=None):
         """
         Apply pointcut on input target and returns final interception.
+
+        The poincut respects all meta properties such as:
+        - function signature,
+        - module path,
+        - file path,
+        - __dict__ reference.
         """
 
         try:
@@ -339,7 +347,7 @@ class Joinpoint(object):
 
         # if kwargs is None
         if kwargs is None and args:
-            kwargs = "kwargs_%s" % generated_id  # generate a name
+            kwargs = "kwargs_{0}".format(generated_id)  # generate a name
             # initialize a new dict with args
             newcodestr = join(
                 (newcodestr, "{0}{1} = {{\n".format(indent, kwargs)))
@@ -459,9 +467,7 @@ class Joinpoint(object):
 
         # set interception, target function and ctx
         self._interception, self.target, self.ctx = _apply_interception(
-            target=target,
-            interception_fn=interception_fn,
-            ctx=ctx
+            target=target, interception_fn=interception_fn, ctx=ctx
         )
 
         return self._interception
@@ -617,8 +623,7 @@ def _unapply_interception(target, ctx=None):
         if not found:
             raise JoinpointError(
                 "Impossible to unapply interception on not modifiable element \
-                {0}. Must be contained in module {1}".format(
-                    target, module))
+                {0}. Must be contained in module {1}".format(target, module))
 
     elif ctx is None:
         # get joinpoint function
@@ -713,8 +718,8 @@ def get_intercepted(target):
     :param target: target from where getting the intercepted function and ctx.
 
     :return: target intercepted function and ctx.
-        None, None if no intercepted function exist.
-        fn, None if not ctx exists.
+        (None, None) if no intercepted function exist.
+        (fn, None) if not ctx exists.
     :rtype: tuple
     """
 

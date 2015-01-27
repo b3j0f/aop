@@ -44,15 +44,12 @@ except ImportError:
     from dummy_threading import Timer
 
 from b3j0f.aop.joinpoint import (
-    get_intercepted, _apply_interception,
-    _unapply_interception, is_intercepted, _get_function,
-    Joinpoint
+    _unapply_interception, is_intercepted, _get_function, Joinpoint, find_ctx
 )
 from b3j0f.utils.version import basestring
-from b3j0f.utils.iterable import ensureiterable
 from b3j0f.utils.property import (
-    put_property, setdefault, get_local_property, del_properties, get_property,
-    find_ctx, remove_ctx, get_first_property
+    put_property, setdefault, get_local_property, del_properties,
+    find_ctx, get_first_property
 )
 
 __all__ = [
@@ -107,14 +104,13 @@ def _add_advices(target, advices, ctx):
     :param bool ordered: ensure advices to add will be done in input order
     """
 
-    joinpoint_advices = setdefault(target, key=_ADVICES, default=[], ctx=ctx)
+    interception_function = _get_function(target)
 
-    if isroutine(advices):
-        advices = [advices]
+    target_advices = getattr(interception_function, _ADVICES, [])
 
-    joinpoint_advices += advices
+    target_advices += advices
 
-    put_property(target, key=_ADVICES, value=joinpoint_advices, ctx=ctx)
+    setattr(interception_function, _ADVICES, target_advices)
 
 
 def _remove_advices(target, advices, ctx):
@@ -124,23 +120,21 @@ def _remove_advices(target, advices, ctx):
     :param advices: advices to remove. If None, remove all advices.
     """
 
-    target_advices = get_local_property(
-        target, key=_ADVICES, ctx=ctx)
+    interception_function = _get_function(target)
+
+    target_advices = getattr(interception_function, _ADVICES, None)
 
     if target_advices is not None:
 
-        if advices is not None:  # remove advices from target_advices
-            target_advices = list(
-                advice for advice in target_advices if advice not in advices)
-
-        else:
-            target_advices = ()
+        target_advices = [
+            advice for advice in target_advices if advice not in advices
+        ]
 
         if target_advices:  # update target advices
-            put_property(target, key=_ADVICES, value=target_advices, ctx=ctx)
+            setattr(interception_function, _ADVICES, target_advices)
 
         else:  # free target advices if necessary
-            del_properties(target, keys=_ADVICES, ctx=ctx)
+            delattr(interception_function, _ADVICES)
             _unapply_interception(target, ctx=ctx)
 
 
@@ -148,10 +142,20 @@ def get_advices(target, ctx=None):
     """
     Get element advices.
 
-    None if element is not a target.
+    :return: list of advices.
+    :rtype: list
     """
 
-    result = get_first_property(target, ctx=ctx, key=_ADVICES, default=[])
+    interception_function = _get_function(target)
+
+    result = getattr(interception_function, _ADVICES, [])
+
+    # find advices in 
+    # find ctx if not given
+    if ctx is None:
+        ctx = find_ctx(target)
+
+    if ctx is not None:
 
     return result
 
@@ -211,65 +215,66 @@ def weave(
     :return: the intercepted functions created from input target or a tuple
         with intercepted functions and ttl timer.
     :rtype: list
+
+    :raises: AdviceError if pointcut is not None, not callable neither a str.
     """
-
-    # initialize advices
-    advices = ensureiterable(advices, iterable=list)
-
-    # check for not empty advices
-    if not advices:
-        raise AdviceError(
-            "No one advice to weave on input target {0}".format(target))
-
-    # initialize pointcut
-
-    # do nothing if pointcut is None or is callable
-    if pointcut is None or callable(pointcut):
-        pass
-
-    # in case of str, use a name matcher
-    elif isinstance(pointcut, basestring):
-        pointcut = _namematcher(pointcut)
-
-    else:
-        error_msg = "Wrong pointcut to check weaving on {0}.".format(target)
-        advice_msg = "Must be None, or be a str or a function/method."
-        right_msg = "Not {1}".format(type(pointcut))
-
-        raise AdviceError(
-            "{0} {1} {2}".format(error_msg, advice_msg, right_msg))
 
     result = []
 
-    if ctx is None:
-        ctx = find_ctx(elt=target)
+    # initialize advices
+    if isroutine(advices):
+        advices = [advices]
 
-    _weave(
-        target=target, advices=advices, pointcut=pointcut,
-        ctx=ctx, depth=depth,
-        depth_predicate=_publiccallable if public else callable,
-        intercepted=result, pointcut_application=pointcut_application)
+    if advices:
+        # initialize pointcut
 
-    if ttl is not None:
-        kwargs = {
-            'target': target,
-            'advices': advices,
-            'pointcut': pointcut,
-            'depth': depth,
-            'public': public,
-            'ctx': ctx
-        }
-        timer = Timer(ttl, unweave, kwargs=kwargs)
-        timer.start()
+        # do nothing if pointcut is None or is callable
+        if pointcut is None or callable(pointcut):
+            pass
 
-        result = result, timer
+        # in case of str, use a name matcher
+        elif isinstance(pointcut, basestring):
+            pointcut = _namematcher(pointcut)
+
+        else:
+            error_msg = "Wrong pointcut to check weaving on {0}."
+            error_msg = error_msg.format(target)
+            advice_msg = "Must be None, or be a str or a function/method."
+            right_msg = "Not {0}".format(type(pointcut))
+
+            raise AdviceError(
+                "{0} {1} {2}".format(error_msg, advice_msg, right_msg)
+            )
+
+        if ctx is None:
+            ctx = find_ctx(elt=target)
+
+        _weave(
+            target=target, advices=advices, pointcut=pointcut, depth=depth,
+            depth_predicate=_publiccallable if public else callable, ctx=ctx,
+            intercepted=result, pointcut_application=pointcut_application
+        )
+
+        if ttl is not None:
+            kwargs = {
+                'target': target,
+                'advices': advices,
+                'pointcut': pointcut,
+                'depth': depth,
+                'public': public,
+                'ctx': ctx
+            }
+            timer = Timer(ttl, unweave, kwargs=kwargs)
+            timer.start()
+
+            result = result, timer
 
     return result
 
 
 def _weave(
-    target, advices, pointcut, ctx, depth, depth_predicate,
-    intercepted, pointcut_application
+    target, advices, pointcut, ctx, depth, depth_predicate, intercepted,
+    pointcut_application
 ):
     """
     Weave deeply advices in target.
@@ -287,13 +292,12 @@ def _weave(
                 if pointcut_application is None:
                     pointcut_application = _Joinpoint().apply_pointcut
                 interception_function = pointcut_application(
-                    target=target, function=interception_function,
-                    ctx=ctx)
+                    target=target, function=interception_function, ctx=ctx
+                )
             # add advices to the interception function
-
             _add_advices(
-                target=interception_function, advices=advices, ctx=ctx)
-
+                target=interception_function, advices=advices, ctx=ctx
+            )
             # append interception function to the intercepted ones
             intercepted.append(interception_function)
 
@@ -301,11 +305,10 @@ def _weave(
     elif depth > 0:  # for an object or a class, weave on methods
         for name, member in getmembers(target, depth_predicate):
             _weave(
-                target=member, advices=advices, pointcut=pointcut,
-                ctx=target,
-                depth=depth - 1, depth_predicate=depth_predicate,
-                intercepted=intercepted,
-                pointcut_application=pointcut_application)
+                target=member, advices=advices, pointcut=pointcut, ctx=target,
+                depth_predicate=depth_predicate, intercepted=intercepted,
+                pointcut_application=pointcut_application, depth=depth - 1
+            )
 
 
 def unweave(
@@ -335,7 +338,8 @@ def unweave(
     # ensure advices is a list if not None
     if advices is not None:
 
-        advices = ensureiterable(advices, iterable=list)
+        if isroutine(advices):
+            advices = [advices]
 
     # initialize pointcut
 
@@ -350,10 +354,11 @@ def unweave(
     else:
         error_msg = "Wrong pointcut to check weaving on {0}.".format(target)
         advice_msg = "Must be None, or be a str or a function/method."
-        right_msg = "Not {1}".format(type(pointcut))
+        right_msg = "Not {0}".format(type(pointcut))
 
         raise AdviceError(
-            "{0} {1} {2}".format(error_msg, advice_msg, right_msg))
+            "{0} {1} {2}".format(error_msg, advice_msg, right_msg)
+        )
 
     # get the right ctx
     if ctx is None:
@@ -362,7 +367,8 @@ def unweave(
     _unweave(
         target=target, advices=advices, pointcut=pointcut,
         ctx=ctx,
-        depth=depth, depth_predicate=_publiccallable if public else callable)
+        depth=depth, depth_predicate=_publiccallable if public else callable
+    )
 
 
 def _unweave(target, advices, pointcut, ctx, depth, depth_predicate):
@@ -380,17 +386,16 @@ def _unweave(target, advices, pointcut, ctx, depth, depth_predicate):
             if is_intercepted(target):
             # remove advices to the interception function
                 _remove_advices(
-                    target=interception_function,
-                    advices=advices,
-                    ctx=ctx)
+                    target=interception_function, advices=advices, ctx=ctx
+                )
 
     # search inside the target
     elif depth > 0:  # for an object or a class, weave on methods
         for name, member in getmembers(target, depth_predicate):
             _unweave(
-                target=member, advices=advices, pointcut=pointcut,
-                ctx=target,
-                depth=depth - 1, depth_predicate=depth_predicate)
+                target=member, advices=advices, pointcut=pointcut, ctx=target,
+                depth=depth - 1, depth_predicate=depth_predicate
+            )
 
 
 def weave_on(advices, pointcut=None, ctx=None, depth=1, ttl=None):
@@ -417,7 +422,8 @@ def weave_on(advices, pointcut=None, ctx=None, depth=1, ttl=None):
 
         weave(
             target=target, advices=advices, pointcut=pointcut,
-            ctx=ctx, depth=depth, ttl=ttl)
+            ctx=ctx, depth=depth, ttl=ttl
+        )
 
         return target
 
@@ -497,12 +503,15 @@ class Advice(object):
         Weave advices such as Advice objects.
         """
 
-        advices = (advice if isinstance(advice, Advice) else Advice(advice)
-            for advice in advices)
+        advices = (
+            advice if isinstance(advice, Advice) else Advice(advice)
+            for advice in advices
+        )
 
         weave(
             target=target, advices=advices, pointcut=pointcut,
-            depth=depth, public=public)
+            depth=depth, public=public
+        )
 
     @staticmethod
     def unweave(target, *advices):
@@ -510,8 +519,10 @@ class Advice(object):
         Unweave advices from input target.
         """
 
-        advices = (advice if isinstance(advice, Advice) else Advice(advice)
-            for advice in advices)
+        advices = (
+            advice if isinstance(advice, Advice) else Advice(advice)
+            for advice in advices
+        )
 
         unweave(target=target, *advices)
 
