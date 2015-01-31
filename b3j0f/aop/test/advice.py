@@ -27,6 +27,7 @@
 
 from unittest import main
 
+from b3j0f.utils.version import PY2
 from b3j0f.utils.ut import UTCase
 from b3j0f.aop.advice import Advice, weave, unweave, weave_on
 
@@ -506,11 +507,9 @@ class WeaveTest(UTCase):
         self.count = 0
 
         class BaseTest:
-            def __init__(self, testcase):
-                self.testcase = testcase
 
             def test(self):
-                self.testcase.count += 1
+                pass
 
         class Test(BaseTest):
             pass
@@ -519,106 +518,138 @@ class WeaveTest(UTCase):
             self.count += 1
             return jp.proceed()
 
-        test = Test(self)
-        test2 = Test(self)
-        basetest = BaseTest(self)
-        basetest2 = BaseTest(self)
+        global old_count
+        old_count = 0
+
+        def assertCount(increment=0):
+            """
+            Assert incrementation of count
+            """
+            global old_count
+            if increment > 0 and PY2:
+                increment = 1
+            old_count += increment
+            self.assertEqual(self.count, old_count)
+
+        test = Test()
+        test2 = Test()
+        basetest = BaseTest()
+        basetest2 = BaseTest()
 
         test.test()
+        assertCount()
         test2.test()
+        assertCount()
         basetest.test()
+        assertCount()
         basetest2.test()
-        self.assertEqual(self.count, 4)
+        assertCount()
 
         weave(target=test.test, advices=advice, ctx=test)
 
         test.test()
-        self.assertEqual(self.count, 6)
+        assertCount(1)
         test2.test()
-        self.assertEqual(self.count, 7)
+        assertCount()
+        assertCount()
         basetest.test()
-        self.assertEqual(self.count, 8)
+        assertCount()
         basetest2.test()
-        self.assertEqual(self.count, 9)
+        assertCount()
 
         unweave(target=test.test, ctx=test)
 
         test.test()
-        self.assertEqual(self.count, 10)
+        assertCount()
         test2.test()
-        self.assertEqual(self.count, 11)
+        assertCount()
         basetest.test()
-        self.assertEqual(self.count, 12)
+        assertCount()
         basetest2.test()
-        self.assertEqual(self.count, 13)
+        assertCount()
 
         weave(target=basetest.test, advices=advice, ctx=basetest)
 
         test.test()
-        self.assertEqual(self.count, 14)
+        assertCount()
         test2.test()
-        self.assertEqual(self.count, 15)
+        assertCount()
         basetest2.test()
-        self.assertEqual(self.count, 16)
+        assertCount()
         basetest.test()
-        self.assertEqual(self.count, 18)
+        assertCount(1)
 
         unweave(target=basetest.test, ctx=basetest)
 
         test.test()
-        self.assertEqual(self.count, 19)
+        assertCount()
         test2.test()
-        self.assertEqual(self.count, 20)
+        assertCount()
         basetest2.test()
-        self.assertEqual(self.count, 21)
+        assertCount()
         basetest.test()
-        self.assertEqual(self.count, 22)
+        assertCount()
 
         weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
 
         test.test()
-        self.assertEqual(self.count, 24)
+        assertCount(1)
         test2.test()
-        self.assertEqual(self.count, 26)
+        assertCount(1)
         basetest2.test()
-        self.assertEqual(self.count, 28)
+        assertCount(1)
         basetest.test()
-        self.assertEqual(self.count, 30)
+        assertCount(1)
 
         unweave(target=BaseTest.test, ctx=BaseTest)
 
         test.test()
-        self.assertEqual(self.count, 31)
+        assertCount()
         test2.test()
-        self.assertEqual(self.count, 32)
+        assertCount()
         basetest2.test()
-        self.assertEqual(self.count, 33)
+        assertCount()
         basetest.test()
-        self.assertEqual(self.count, 34)
+        assertCount()
 
         weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
         weave(target=Test.test, advices=advice, ctx=Test)
         weave(target=test.test, advices=advice, ctx=test)
 
         test.test()
-        self.assertEqual(self.count, 38)
+        assertCount(3)
         test2.test()
-        self.assertEqual(self.count, 41)
+        assertCount(2)
         basetest2.test()
-        self.assertEqual(self.count, 43)
+        assertCount(1)
         basetest.test()
-        self.assertEqual(self.count, 45)
+        assertCount(1)
 
         unweave(target=Test.test, ctx=Test)
 
         test.test()
-        self.assertEqual(self.count, 49)
+        assertCount(3)
         test2.test()
-        self.assertEqual(self.count, 52)
+        assertCount(1)
         basetest2.test()
-        self.assertEqual(self.count, 54)
+        assertCount(1)
         basetest.test()
-        self.assertEqual(self.count, 56)
+        assertCount(1)
+
+    def plop(self):
+
+        class A:
+            def test(self):
+                pass
+
+        class B(A):
+            pass
+
+        b = B()
+
+        weave(target=A.test, advices=lambda: None, ctx=A)
+        weave(target=B.test, advices=lambda: None, ctx=B)
+        weave(target=b.test, advices=lambda: None, ctx=b)
 
     def test_instance_method(self):
 

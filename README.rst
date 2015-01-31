@@ -20,6 +20,6 @@ Examples
    >>> def function_to_intercept():
    >>>    return 1
 
-   >>> weave(function_to_intercept, lambda adviceexecutor: advoceexecutor.proceed(), 1)
+   >>> weave(function_to_intercept, lambda adviceexecutor: adviceexecutor.proceed(), 1)
 
    >>> assert function_to_intercept(), (1, 1)

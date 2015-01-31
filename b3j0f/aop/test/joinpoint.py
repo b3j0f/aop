@@ -38,6 +38,8 @@ from b3j0f.utils.version import PY3, PY2
 
 from types import MethodType, FunctionType
 
+from inspect import isclass
+
 
 class FindCTXTest(UTCase):
     """
@@ -130,7 +132,7 @@ class JoinpointProceedingTest(UTCase):
         # call target
         result = jp_interception(*args, **kwargs)
         # compare result with target
-        if expected_result is None:
+        if expected_result is None and not isclass(target):
             expected_result = JoinpointProceedingTest
         self.assertEqual(result, expected_result)
         # compare count with before and after interception
@@ -149,8 +151,9 @@ class JoinpointProceedingTest(UTCase):
 
         class Test:
             pass
-
-        self.assertRaises(TypeError, self._test_joinpoint_proceeding, Test)
+        self._test_joinpoint_proceeding(
+            target=Test, ctx=Test, args=[Test()]
+        )
 
     def test_instance_method(self):
         """
@@ -376,12 +379,11 @@ class GetFunctionTest(UTCase):
         class A:
             pass
 
+        func = _get_function(A)
+        to_compare = A.__init__
         if PY2:
-            self.assertRaises(TypeError, _get_function, A)
-        else:
-            func = _get_function(A)
-            _function = A if PY2 else A.__init__
-            self.assertEqual(func, _function)
+            to_compare = to_compare.__func__
+        self.assertEqual(func, to_compare)
 
     def test_builtin(self):
 

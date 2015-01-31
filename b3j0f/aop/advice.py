@@ -340,31 +340,31 @@ def _weave(
     # if weaving has to be done
     if pointcut is None or pointcut(target):
         # get target interception function
-        interception_function = _get_function(target)
+        interception_fn = _get_function(target)
         # does not handle not python functions
-        if interception_function is not None:
+        if interception_fn is not None:
             # flag which specifies if poincut has to by applied
             # True if target is not intercepted
             apply_poincut = not is_intercepted(target)
             # apply poincut if not intercepted
             if (not apply_poincut) and ctx is not None:
                 # apply poincut if ctx is not intercepted_ctx
-                intercepted, intercepted_ctx = get_intercepted(target)
+                interception_fn, intercepted_ctx = get_intercepted(target)
                 apply_poincut = ctx is not intercepted_ctx
             # if weave has to be done
             if apply_poincut:
                 # instantiate a new joinpoint if pointcut_application is None
                 if pointcut_application is None:
                     pointcut_application = _Joinpoint().apply_pointcut
-                interception_function = pointcut_application(
-                    target=target, function=interception_function, ctx=ctx
+                interception_fn = pointcut_application(
+                    target=target, function=interception_fn, ctx=ctx
                 )
             # add advices to the interception function
             _add_advices(
-                target=interception_function, advices=advices
+                target=interception_fn, advices=advices
             )
             # append interception function to the intercepted ones
-            intercepted.append(interception_function)
+            intercepted.append(interception_fn)
 
     # search inside the target
     elif depth > 0:  # for an object or a class, weave on methods

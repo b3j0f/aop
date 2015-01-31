@@ -72,7 +72,8 @@ _INTERCEPTED_CTX = '_intercepted_ctx'
 _INTERCEPTION = '_interception'
 
 #: list of attributes to set after wrapping a function with a joinpoint
-WRAPPER_ASSIGNMENTS = ['__doc__', '__dict__', '__module__']
+WRAPPER_ASSIGNMENTS = ['__doc__', '__module__', '__name__']
+WRAPPER_UPDATES = ['__dict__']
 
 
 def find_ctx(elt):
@@ -123,12 +124,13 @@ def super_method(name, ctx):
     result = None
 
     # get base ctx
-    base_ctx = ctx if isclass(ctx) else ctx.__class__
-    # get base ref
+    super_ctx = base_ctx(ctx)
+    # try to get base method from multiple inheritance
     try:
-        super_ref = super(base_ctx, ctx)
+        super_ctx = ctx if isclass(ctx) else ctx.__class__
+        super_ref = super(super_ctx, ctx)
     except TypeError:
-        super_ref = None
+        super_ref = base_ctx(ctx)
     # get base interception
     result = getattr(super_ref, name, None)
 
@@ -231,6 +233,18 @@ class Joinpoint(object):
 
         # set target
         self.set_target(target=target, ctx=ctx)
+
+    def __repr__(self):
+
+        self_type = type(self)
+        result = "{0}(".format(self_type.__name__)
+
+        for slot in self_type.__slots__:
+            result += "{0}:{1},".format(slot, getattr(self, slot))
+        else:
+            result = "{0})".format(result[:-2])
+
+        return result
 
     def set_target(self, target, ctx=None):
         """
@@ -343,12 +357,18 @@ class Joinpoint(object):
             args, varargs, kwargs, _ = getargspec(function)
         except TypeError:
             # if function is not a python function, create a generic one
+            # with assignments
             assigned = []
             for wrapper_assignment in WRAPPER_ASSIGNMENTS:
                 if hasattr(function, wrapper_assignment):
                     assigned.append(wrapper_assignment)
+            # and updates
+            updated = []
+            for wrapper_update in WRAPPER_UPDATES:
+                if hasattr(function, wrapper_update):
+                    updated.append(wrapper_update)
 
-            @wraps(function, assigned=assigned)
+            @wraps(function, assigned=assigned, updated=updated)
             def function(*args, **kwargs):
                 pass
 
@@ -493,14 +513,12 @@ class Joinpoint(object):
         # instanciate a new function
         if function is None or isbuiltin(function):
             interception_fn = FunctionType(codeobj, {})
-
         else:
             interception_fn = type(function)(
                 codeobj, function.__globals__, function.__name__,
                 function.__defaults__, function.__closure__
             )
-
-        # update wrapping assignments
+        # set wrapping assignments
         for wrapper_assignment in WRAPPER_ASSIGNMENTS:
             try:
                 value = getattr(function, wrapper_assignment)
@@ -508,6 +526,14 @@ class Joinpoint(object):
                 pass
             else:
                 setattr(interception_fn, wrapper_assignment, value)
+        # update wrapping updating
+        for wrapper_update in WRAPPER_UPDATES:
+            try:
+                value = getattr(function, wrapper_update)
+            except AttributeError:
+                pass
+            else:
+                getattr(interception_fn, wrapper_update).update(value)
 
         # set interception, target function and ctx
         self._interception, self.target, self.ctx = _apply_interception(
@@ -588,30 +614,34 @@ def _apply_interception(
 
     else:
         # get target name
-        target_name = target.__name__
+        if isclass(target):  # if target is a class, get constructor name
+            target_name = _get_function(target).__name__
+        else:  # else get target name
+            target_name = target.__name__
         # get the right intercepted
         intercepted = getattr(ctx, target_name)
-
+        # in case of method
         if ismethod(intercepted):  # in creating eventually a new method
-
             args = [interception, ctx]
             if PY2:  # if py2, specify the ctx class
                 # and unbound method type
                 if intercepted.__self__ is None:
                     args = [interception, None, ctx]
-
                 else:
                     args.append(ctx.__class__)
             # instantiate a new method
             interception = MethodType(*args)
-            intercepted = intercepted.__func__
+            # get the right intercepted function
+            if is_intercepted(intercepted):
+                intercepted, _ = get_intercepted(intercepted)
+            else:
+                intercepted = _get_function(intercepted)
 
         # set in ctx the new method
         setattr(ctx, target_name, interception)
 
     # add intercepted into interception_fn globals and attributes
     interception_fn = _get_function(interception)
-
     # set intercepted
     setattr(interception_fn, _INTERCEPTED, intercepted)
     # set intercepted ctx
@@ -805,7 +835,10 @@ def _get_function(target):
             # create one
             def __init__(self):
                 pass
-            target.__init__ = __init__
+            if PY2:
+                target.__init__ = MethodType(__init__, None, target)
+            else:
+                target.__init__ = __init__
             constructor = target.__init__
         # if constructor is a method, return function method
         if ismethod(constructor):
