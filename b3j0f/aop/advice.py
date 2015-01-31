@@ -33,7 +33,7 @@ from re import compile as re_compile
 from uuid import uuid4 as uuid
 
 from inspect import (
-    getmembers, isroutine
+    getmembers, isroutine, isclass
 )
 
 from opcode import opmap
@@ -44,13 +44,10 @@ except ImportError:
     from dummy_threading import Timer
 
 from b3j0f.aop.joinpoint import (
-    _unapply_interception, is_intercepted, _get_function, Joinpoint, find_ctx
+    _unapply_interception, is_intercepted, _get_function, Joinpoint, find_ctx,
+    super_method, get_intercepted, base_ctx
 )
-from b3j0f.utils.version import basestring
-from b3j0f.utils.property import (
-    put_property, setdefault, get_local_property, del_properties,
-    find_ctx, get_first_property
-)
+from b3j0f.utils.version import basestring, PY2
 
 __all__ = [
     'AdviceError', 'get_advices',
@@ -94,7 +91,7 @@ class _Joinpoint(Joinpoint):
         return result
 
 
-def _add_advices(target, advices, ctx):
+def _add_advices(target, advices):
     """
     Add advices on input target.
 
@@ -119,6 +116,11 @@ def _remove_advices(target, advices, ctx):
 
     :param advices: advices to remove. If None, remove all advices.
     """
+    # if ctx is not None
+    if ctx is not None:  # check if intercepted ctx is ctx
+        _, intercepted_ctx = get_intercepted(target)
+        if intercepted_ctx is None or intercepted_ctx is not ctx:
+            return
 
     interception_function = _get_function(target)
 
@@ -126,9 +128,12 @@ def _remove_advices(target, advices, ctx):
 
     if target_advices is not None:
 
-        target_advices = [
-            advice for advice in target_advices if advice not in advices
-        ]
+        if advices is None:
+            target_advices = []
+        else:
+            target_advices = [
+                advice for advice in target_advices if advice not in advices
+            ]
 
         if target_advices:  # update target advices
             setattr(interception_function, _ADVICES, target_advices)
@@ -138,24 +143,63 @@ def _remove_advices(target, advices, ctx):
             _unapply_interception(target, ctx=ctx)
 
 
-def get_advices(target, ctx=None):
+def get_advices(target, ctx=None, local=False):
     """
     Get element advices.
 
+    :param target: target from where get advices.
+    :param ctx: ctx from where get target.
+    :param bool local: If ctx is not None or target is a method, if True
+        (False by default) get only target advices without resolving super
+        target advices in a super ctx.
     :return: list of advices.
     :rtype: list
     """
 
-    interception_function = _get_function(target)
+    result = []
 
-    result = getattr(interception_function, _ADVICES, [])
+    if is_intercepted(target):
+        # find ctx if not given
+        if ctx is None:
+            ctx = find_ctx(target)
+        # find advices among super ctx if same intercepted/interception
+        if ctx is not None:
+            # get target name
+            target_name = target.__name__
+            # resolve target
+            _target = getattr(ctx, target_name, None)
+            # get super ctx
+            super_ctx = ctx
+            while _target is not None:
+                # check if _target is intercepted
+                if is_intercepted(_target):
+                    # get intercepted ctx
+                    _, intercepted_ctx = get_intercepted(_target)
+                    # if intercepted ctx is ctx
+                    if intercepted_ctx is super_ctx:
+                        # get advices from _target interception
+                        interception_function = _get_function(_target)
+                        advices = getattr(interception_function, _ADVICES, [])
+                        result += advices
+                        # update _target
+                        _target = super_method(name=target_name, ctx=super_ctx)
+                        if _target != target:  # continue if _target == target
+                            _target = None
+                        elif PY2:  # update super_ctx
+                            super_ctx = _target.im_class
+                        else:
+                            super_ctx = super_ctx.__base__
+                    else:  # else super_ctx is intercepted_ctx
+                        super_ctx = intercepted_ctx
+                        # and update _target
+                        _target = getattr(super_ctx, target_name, None)
+                if local:  # break if local has been requested
+                    break
 
-    # find advices in 
-    # find ctx if not given
-    if ctx is None:
-        ctx = find_ctx(target)
-
-    if ctx is not None:
+        else:
+            # get advices from interception function
+            interception_function = _get_function(target)
+            result = getattr(interception_function, _ADVICES, [])
 
     return result
 
@@ -190,8 +234,7 @@ def weave(
     target, advices, pointcut=None, ctx=None, depth=1, public=False,
     pointcut_application=None, ttl=None
 ):
-    """
-    Weave advices on target with input pointcut.
+    """Weave advices on target with input pointcut.
 
     :param callable target: target from where checking pointcut and
         weaving advices.
@@ -204,8 +247,8 @@ def weave(
         - str: target name is compared to pointcut regex.
         - function: called with target in parameter, if True, advices will
             be weaved on target.
-    :param int depth: class weaving depthing
-    :param bool public: (default True) weave only on public members
+    :param int depth: class weaving depthing.
+    :param bool public: (default True) weave only on public members.
     :param routine pointcut_application: routine which applies a pointcut when
         required. _Joinpoint().apply_pointcut by default. Such routine has
         to take in parameters a routine called target and its related
@@ -227,15 +270,12 @@ def weave(
 
     if advices:
         # initialize pointcut
-
         # do nothing if pointcut is None or is callable
         if pointcut is None or callable(pointcut):
             pass
-
         # in case of str, use a name matcher
         elif isinstance(pointcut, basestring):
             pointcut = _namematcher(pointcut)
-
         else:
             error_msg = "Wrong pointcut to check weaving on {0}."
             error_msg = error_msg.format(target)
@@ -276,18 +316,43 @@ def _weave(
     target, advices, pointcut, ctx, depth, depth_predicate, intercepted,
     pointcut_application
 ):
-    """
-    Weave deeply advices in target.
+    """Weave deeply advices in target.
+
+    :param callable target: target from where checking pointcut and
+        weaving advices.
+    :param advices: advices to weave on target.
+    :param ctx: target ctx (class or instance).
+    :param pointcut: condition for weaving advices on joinpointe.
+        The condition depends on its type.
+    :type pointcut:
+        - NoneType: advices are weaved on target.
+        - str: target name is compared to pointcut regex.
+        - function: called with target in parameter, if True, advices will
+            be weaved on target.
+    :param int depth: class weaving depthing.
+    :param list intercepted: list of intercepted targets.
+    :param routine pointcut_application: routine which applies a pointcut when
+        required. _Joinpoint().apply_pointcut by default. Such routine has
+        to take in parameters a routine called target and its related
+        function called function. Its result is the interception function.
     """
 
     # if weaving has to be done
-    if isroutine(target) and (pointcut is None or pointcut(target)):
+    if pointcut is None or pointcut(target):
         # get target interception function
         interception_function = _get_function(target)
         # does not handle not python functions
         if interception_function is not None:
-            # intercept target if not intercepted
-            if not is_intercepted(target):
+            # flag which specifies if poincut has to by applied
+            # True if target is not intercepted
+            apply_poincut = not is_intercepted(target)
+            # apply poincut if not intercepted
+            if (not apply_poincut) and ctx is not None:
+                # apply poincut if ctx is not intercepted_ctx
+                intercepted, intercepted_ctx = get_intercepted(target)
+                apply_poincut = ctx is not intercepted_ctx
+            # if weave has to be done
+            if apply_poincut:
                 # instantiate a new joinpoint if pointcut_application is None
                 if pointcut_application is None:
                     pointcut_application = _Joinpoint().apply_pointcut
@@ -296,26 +361,30 @@ def _weave(
                 )
             # add advices to the interception function
             _add_advices(
-                target=interception_function, advices=advices, ctx=ctx
+                target=interception_function, advices=advices
             )
             # append interception function to the intercepted ones
             intercepted.append(interception_function)
 
     # search inside the target
     elif depth > 0:  # for an object or a class, weave on methods
+        # get the right base ctx
+        _base_ctx = None
+        if ctx is not None:
+            _base_ctx = base_ctx(ctx)
         for name, member in getmembers(target, depth_predicate):
             _weave(
-                target=member, advices=advices, pointcut=pointcut, ctx=target,
+                target=member, advices=advices, pointcut=pointcut,
                 depth_predicate=depth_predicate, intercepted=intercepted,
-                pointcut_application=pointcut_application, depth=depth - 1
+                pointcut_application=pointcut_application, depth=depth - 1,
+                ctx=_base_ctx
             )
 
 
 def unweave(
     target, advices=None, pointcut=None, ctx=None, depth=1, public=False,
 ):
-    """
-    Unweave advices on target with input pointcut.
+    """Unweave advices on target with input pointcut.
 
     :param callable target: target from where checking pointcut and
         weaving advices.
@@ -329,7 +398,7 @@ def unweave(
             be weaved on target.
 
     :param ctx: target ctx (class or instance).
-    :param int depth: class weaving depthing
+    :param int depth: class weaving depthing.
     :param bool public: (default True) weave only on public members
 
     :return: the intercepted functions created from input target.
@@ -362,7 +431,7 @@ def unweave(
 
     # get the right ctx
     if ctx is None:
-        ctx = find_ctx(ctx, target)
+        ctx = find_ctx(target)
 
     _unweave(
         target=target, advices=advices, pointcut=pointcut,
@@ -377,24 +446,21 @@ def _unweave(target, advices, pointcut, ctx, depth, depth_predicate):
     """
 
     # if weaving has to be done
-    if isroutine(target) and (pointcut is None or pointcut(target)):
-        # get target interception function
-        interception_function = _get_function(target)
-        # does not handle not python functions
-        if interception_function is not None:
-            # intercept target if not intercepted
-            if is_intercepted(target):
-            # remove advices to the interception function
-                _remove_advices(
-                    target=interception_function, advices=advices, ctx=ctx
-                )
+    if pointcut is None or pointcut(target):
+        # do something only if target is intercepted
+        if is_intercepted(target):
+            _remove_advices(target=target, advices=advices, ctx=ctx)
 
     # search inside the target
-    elif depth > 0:  # for an object or a class, weave on methods
+    if depth > 0:  # for an object or a class, weave on methods
+        # get base ctx
+        _base_ctx = None
+        if ctx is not None:
+            _base_ctx = base_ctx(ctx)
         for name, member in getmembers(target, depth_predicate):
             _unweave(
-                target=member, advices=advices, pointcut=pointcut, ctx=target,
-                depth=depth - 1, depth_predicate=depth_predicate
+                target=member, advices=advices, pointcut=pointcut,
+                depth=depth - 1, depth_predicate=depth_predicate, ctx=_base_ctx
             )
 
 

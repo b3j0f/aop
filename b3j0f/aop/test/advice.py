@@ -515,6 +515,10 @@ class WeaveTest(UTCase):
         class Test(BaseTest):
             pass
 
+        def advice(jp):
+            self.count += 1
+            return jp.proceed()
+
         test = Test(self)
         test2 = Test(self)
         basetest = BaseTest(self)
@@ -526,48 +530,95 @@ class WeaveTest(UTCase):
         basetest2.test()
         self.assertEqual(self.count, 4)
 
-        weave(target=test.test, advices=lambda ae: None, ctx=test)
+        weave(target=test.test, advices=advice, ctx=test)
 
         test.test()
+        self.assertEqual(self.count, 6)
         test2.test()
-        self.assertEqual(self.count, 5)
-
-        basetest.test()
-        basetest2.test()
         self.assertEqual(self.count, 7)
+        basetest.test()
+        self.assertEqual(self.count, 8)
+        basetest2.test()
+        self.assertEqual(self.count, 9)
 
         unweave(target=test.test, ctx=test)
 
         test.test()
-        self.assertEqual(self.count, 8)
+        self.assertEqual(self.count, 10)
+        test2.test()
+        self.assertEqual(self.count, 11)
+        basetest.test()
+        self.assertEqual(self.count, 12)
+        basetest2.test()
+        self.assertEqual(self.count, 13)
 
-        weave(target=basetest.test, advices=lambda ae: None, ctx=basetest)
+        weave(target=basetest.test, advices=advice, ctx=basetest)
 
         test.test()
+        self.assertEqual(self.count, 14)
         test2.test()
+        self.assertEqual(self.count, 15)
         basetest2.test()
-        self.assertEqual(self.count, 11)
-
+        self.assertEqual(self.count, 16)
         basetest.test()
-        self.assertEqual(self.count, 11)
+        self.assertEqual(self.count, 18)
 
         unweave(target=basetest.test, ctx=basetest)
 
         test.test()
+        self.assertEqual(self.count, 19)
         test2.test()
+        self.assertEqual(self.count, 20)
         basetest2.test()
+        self.assertEqual(self.count, 21)
         basetest.test()
-        self.assertEqual(self.count, 15)
+        self.assertEqual(self.count, 22)
 
-        weave(target=BaseTest.test, advices=lambda ae: None, ctx=BaseTest)
+        weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
 
         test.test()
+        self.assertEqual(self.count, 24)
         test2.test()
+        self.assertEqual(self.count, 26)
         basetest2.test()
+        self.assertEqual(self.count, 28)
         basetest.test()
-        self.assertEqual(self.count, 15)
+        self.assertEqual(self.count, 30)
 
         unweave(target=BaseTest.test, ctx=BaseTest)
+
+        test.test()
+        self.assertEqual(self.count, 31)
+        test2.test()
+        self.assertEqual(self.count, 32)
+        basetest2.test()
+        self.assertEqual(self.count, 33)
+        basetest.test()
+        self.assertEqual(self.count, 34)
+
+        weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
+        weave(target=Test.test, advices=advice, ctx=Test)
+        weave(target=test.test, advices=advice, ctx=test)
+
+        test.test()
+        self.assertEqual(self.count, 38)
+        test2.test()
+        self.assertEqual(self.count, 41)
+        basetest2.test()
+        self.assertEqual(self.count, 43)
+        basetest.test()
+        self.assertEqual(self.count, 45)
+
+        unweave(target=Test.test, ctx=Test)
+
+        test.test()
+        self.assertEqual(self.count, 49)
+        test2.test()
+        self.assertEqual(self.count, 52)
+        basetest2.test()
+        self.assertEqual(self.count, 54)
+        basetest.test()
+        self.assertEqual(self.count, 56)
 
     def test_instance_method(self):
 
@@ -603,19 +654,13 @@ class WeaveTest(UTCase):
 
         a = A()
 
-        self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
-
-        weave(target=a, pointcut='__call__', advices=lambda ae: None)
-
-        self.assertNotEqual(a.__call__, A.__call__)
+        weave(target=a, advices=lambda ae: None)
 
         result = a()
 
         self.assertEqual(result, None)
 
         unweave(target=a)
-
-        self.assertEqual(a.__call__, A.__call__)
 
         result = a()
 

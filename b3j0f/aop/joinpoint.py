@@ -35,7 +35,7 @@ object.
 
 from inspect import (
     isbuiltin, ismethod, isclass, isfunction, getmodule, getmembers, getfile,
-    getargspec, isroutine
+    getargspec
 )
 
 from opcode import opmap
@@ -55,7 +55,8 @@ from b3j0f.utils.version import PY3, PY2
 
 __all__ = [
     'Joinpoint', 'JoinpointError',
-    'get_intercepted', 'is_intercepted'
+    'get_intercepted', 'is_intercepted',
+    'super_method', 'find_ctx', 'base_ctx'
 ]
 
 # consts for interception loading
@@ -75,12 +76,10 @@ WRAPPER_ASSIGNMENTS = ['__doc__', '__dict__', '__module__']
 
 
 def find_ctx(elt):
-    """
-    Find a Pointcut ctx which is a class/instance related to input
+    """Find a Pointcut ctx which is a class/instance related to input
     function/method.
 
     :param elt: elt from where find a ctx.
-
     :return: elt ctx. None if no ctx available or if elt is a None method.
     """
 
@@ -92,6 +91,46 @@ def find_ctx(elt):
 
         if result is None and PY2:
             result = elt.im_class
+
+    return result
+
+
+def base_ctx(ctx):
+    """Get base ctx
+
+    :param ctx: initial ctx.
+    :return: base ctx.
+    """
+
+    result = None
+
+    if isclass(ctx):
+        result = getattr(ctx, '__base__', None)
+    else:
+        result = ctx.__class__
+
+    return result
+
+
+def super_method(name, ctx):
+    """Get super ctx method where name matches with input name.
+
+    :param name: method name to find in super ctx.
+    :param ctx: initial method ctx.
+    :return: method in super ctx.
+    """
+
+    result = None
+
+    # get base ctx
+    base_ctx = ctx if isclass(ctx) else ctx.__class__
+    # get base ref
+    try:
+        super_ref = super(base_ctx, ctx)
+    except TypeError:
+        super_ref = None
+    # get base interception
+    result = getattr(super_ref, name, None)
 
     return result
 
@@ -130,7 +169,6 @@ class Joinpoint(object):
 
     #: interception args attribute name
     ARGS = 'args'
-
     #: interception kwargs attribute name
     KWARGS = 'kwargs'
 
@@ -305,9 +343,15 @@ class Joinpoint(object):
             args, varargs, kwargs, _ = getargspec(function)
         except TypeError:
             # if function is not a python function, create a generic one
-            @wraps(function)
+            assigned = []
+            for wrapper_assignment in WRAPPER_ASSIGNMENTS:
+                if hasattr(function, wrapper_assignment):
+                    assigned.append(wrapper_assignment)
+
+            @wraps(function, assigned=assigned)
             def function(*args, **kwargs):
                 pass
+
             # get params from target wrapper
             args, varargs, kwargs, _ = getargspec(function)
 
@@ -488,7 +532,7 @@ def _apply_interception(
     """
     Apply interception on input target and return the final target.
 
-    :param routine target: target on applying the interception_fn.
+    :param Callable target: target on applying the interception_fn.
     :param function interception_fn: interception function to apply on
         target
     :param ctx: target ctx (instance or class) if not None.
@@ -503,8 +547,8 @@ def _apply_interception(
     :raises: TypeError if target is not a routine.
     """
 
-    if not isroutine(target):
-        raise TypeError('target {0} is not a routine.'.format(target))
+    if not callable(target):
+        raise TypeError('target {0} is not callable.'.format(target))
 
     intercepted = target
     interception = interception_fn
@@ -529,7 +573,8 @@ def _apply_interception(
             if not found:  # raise Exception if not found
                 raise JoinpointError(
                     "Impossible to weave on not modifiable function {0}. \
-                    Must be contained in module {1}".format(target, module))
+                    Must be contained in module {1}".format(target, module)
+                )
 
     elif ctx is None:
         # update code with interception code
@@ -623,7 +668,8 @@ def _unapply_interception(target, ctx=None):
         if not found:
             raise JoinpointError(
                 "Impossible to unapply interception on not modifiable element \
-                {0}. Must be contained in module {1}".format(target, module))
+                {0}. Must be contained in module {1}".format(target, module)
+            )
 
     elif ctx is None:
         # get joinpoint function
@@ -639,12 +685,7 @@ def _unapply_interception(target, ctx=None):
         # get interception name in order to update/delete interception from ctx
         intercepted_name = intercepted.__name__
         # should we change of target or is it inherited ?
-        # get base ctx
-        base_ctx = ctx if isclass(ctx) else ctx.__class__
-        # get base ref
-        super_ref = super(base_ctx, ctx)
-        # get base interception
-        base_interception = getattr(super_ref, intercepted_name, None)
+        base_interception = super_method(name=intercepted_name, ctx=ctx)
         # if base interception does not exist
         if base_interception is None:  # recover intercepted
             recover = True
@@ -761,8 +802,11 @@ def _get_function(target):
             getattr(target, '__new__', None))  # try to find __new__ | target
         # if no constructor exists
         if constructor is None:
-            raise TypeError(
-                'class {0} does not have a constructor'.format(target))
+            # create one
+            def __init__(self):
+                pass
+            target.__init__ = __init__
+            constructor = target.__init__
         # if constructor is a method, return function method
         if ismethod(constructor):
             result = constructor.__func__

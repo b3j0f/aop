@@ -6,11 +6,6 @@
 Welcome to b3j0f.aop's documentation!
 =====================================
 
-Contents:
-
-.. toctree::
-   :maxdepth: 2
-
 Indices and tables
 ==================
 
@@ -18,7 +13,7 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-This library aims to improve python aspects oriented programming efficiency among several existing library.
+This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
 
 Installation
 ------------
