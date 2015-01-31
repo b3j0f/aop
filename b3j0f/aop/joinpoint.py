@@ -35,7 +35,7 @@ object.
 
 from inspect import (
     isbuiltin, ismethod, isclass, isfunction, getmodule, getmembers, getfile,
-    getargspec
+    getargspec, isroutine
 )
 
 from opcode import opmap
@@ -117,11 +117,12 @@ def base_ctx(ctx):
 
 
 def super_method(name, ctx):
-    """Get super ctx method where name matches with input name.
+    """Get super ctx method and ctx where name matches with input name.
 
     :param name: method name to find in super ctx.
     :param ctx: initial method ctx.
-    :return: method in super ctx.
+    :return: method in super ctx and super ctx.
+    :rtype: tuple
     """
 
     result = None
@@ -130,12 +131,12 @@ def super_method(name, ctx):
     super_ctx = base_ctx(ctx)
     # try to get base method from multiple inheritance
     try:
-        super_ctx = ctx if isclass(ctx) else ctx.__class__
-        super_ref = super(super_ctx, ctx)
+        _ctx = ctx if isclass(ctx) else ctx.__class__
+        super_ref = super(_ctx, ctx)
     except TypeError:
-        super_ref = base_ctx(ctx)
+        super_ref = super_ctx
     # get base interception
-    result = getattr(super_ref, name, None)
+    result = getattr(super_ref, name, None), super_ctx
 
     return result
 
@@ -218,6 +219,8 @@ class Joinpoint(object):
         """
 
         super(Joinpoint, self).__init__()
+
+        self._advices_iterator = None
 
         # init critical parameters
         self._interception = None
@@ -639,7 +642,6 @@ def _apply_interception(
                 intercepted, _ = get_intercepted(intercepted)
             else:
                 intercepted = _get_function(intercepted)
-
         # set in ctx the new method
         setattr(ctx, target_name, interception)
 
@@ -718,7 +720,7 @@ def _unapply_interception(target, ctx=None):
         # get interception name in order to update/delete interception from ctx
         intercepted_name = intercepted.__name__
         # should we change of target or is it inherited ?
-        base_interception = super_method(name=intercepted_name, ctx=ctx)
+        base_interception, _ = super_method(name=intercepted_name, ctx=ctx)
         # if base interception does not exist
         if base_interception is None:  # recover intercepted
             recover = True
@@ -727,12 +729,15 @@ def _unapply_interception(target, ctx=None):
             # get joinpoint_function
             joinpoint_function = _get_function(target)
             # get base function
-            base_function = _get_function(base_interception)
+            if is_intercepted(base_interception):
+                base_intercepted, _ = get_intercepted(base_interception)
+            else:
+                base_intercepted = _get_function(base_interception)
             # is interception inherited ?
-            if base_function is joinpoint_function:
+            if base_intercepted is joinpoint_function:
                 pass  # do nothing
             # is intercepted inherited
-            elif base_function is intercepted:
+            elif base_intercepted is intercepted:
                 # del interception
                 delattr(ctx, intercepted_name)
                 del_joinpoint_function = True
@@ -833,7 +838,8 @@ def _get_function(target):
     if isclass(target):
         constructor = getattr(
             target, '__init__',  # try to find __init__
-            getattr(target, '__new__', None))  # try to find __new__ | target
+            getattr(target, '__new__', None)
+        )  # try to find __new__ | target
         # if no constructor exists
         if constructor is None:
             # create one
@@ -855,7 +861,7 @@ def _get_function(target):
         result = target.__func__
 
     # return target if target is function or builtin
-    elif isfunction(target) or isbuiltin(target):
+    elif isfunction(target) or isbuiltin(target) or isroutine(target):
         result = target
 
     else:  # otherwise, return __call__ method

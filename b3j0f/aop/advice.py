@@ -168,31 +168,39 @@ def get_advices(target, ctx=None, local=False):
             target_name = target.__name__
             # resolve target
             _target = getattr(ctx, target_name, None)
+            # get intercepted_target in order to compare with super targets
+            intercepted_target, _ = get_intercepted(target)
             # get super ctx
-            super_ctx = ctx
-            while _target is not None:
+            _target_ctx = ctx
+            # climb back class hierarchy tree through all super targets
+            while (_target, _target_ctx) != (None, None):
                 # check if _target is intercepted
                 if is_intercepted(_target):
                     # get intercepted ctx
-                    _, intercepted_ctx = get_intercepted(_target)
+                    intercepted_fn, intercepted_ctx = get_intercepted(_target)
                     # if intercepted ctx is ctx
-                    if intercepted_ctx is super_ctx:
+                    if intercepted_ctx is _target_ctx:
                         # get advices from _target interception
                         interception_function = _get_function(_target)
                         advices = getattr(interception_function, _ADVICES, [])
                         result += advices
                         # update _target
-                        _target = super_method(name=target_name, ctx=super_ctx)
-                        if _target != target:  # continue if _target == target
-                            _target = None
-                        elif PY2:  # update super_ctx
-                            super_ctx = _target.im_class
-                        else:
-                            super_ctx = super_ctx.__base__
-                    else:  # else super_ctx is intercepted_ctx
-                        super_ctx = intercepted_ctx
+                        _target, _target_ctx = super_method(
+                            name=target_name, ctx=_target_ctx
+                        )
+                    else:  # else _target_ctx is intercepted_ctx
+                        _target_ctx = intercepted_ctx
                         # and update _target
-                        _target = getattr(super_ctx, target_name, None)
+                        _target = getattr(_target_ctx, target_name, None)
+                else:  # else, intercepted_fn is _target function
+                    intercepted_fn = _get_function(_target)
+                    _target, _target_ctx = super_method(
+                        name=target_name, ctx=_target_ctx
+                    )
+                # if intercepted are different, stop iteration
+                if intercepted_target is not intercepted_fn:
+                    break
+
                 if local:  # break if local has been requested
                     break
 
@@ -349,8 +357,11 @@ def _weave(
             # apply poincut if not intercepted
             if (not apply_poincut) and ctx is not None:
                 # apply poincut if ctx is not intercepted_ctx
-                interception_fn, intercepted_ctx = get_intercepted(target)
-                apply_poincut = ctx is not intercepted_ctx
+                intercepted_fn, intercepted_ctx = get_intercepted(target)
+                if ctx is not intercepted_ctx:
+                    apply_poincut = True
+                    # and update interception_fn
+                    interception_fn = intercepted_fn
             # if weave has to be done
             if apply_poincut:
                 # instantiate a new joinpoint if pointcut_application is None
@@ -368,16 +379,15 @@ def _weave(
 
     # search inside the target
     elif depth > 0:  # for an object or a class, weave on methods
-        # get the right base ctx
-        _base_ctx = None
-        if ctx is not None:
-            _base_ctx = base_ctx(ctx)
-        for name, member in getmembers(target, depth_predicate):
+        # get the right ctx
+        if ctx is None:
+            ctx = target
+        for name, member in getmembers(ctx, depth_predicate):
             _weave(
                 target=member, advices=advices, pointcut=pointcut,
                 depth_predicate=depth_predicate, intercepted=intercepted,
                 pointcut_application=pointcut_application, depth=depth - 1,
-                ctx=_base_ctx
+                ctx=ctx
             )
 
 

@@ -32,13 +32,71 @@ from b3j0f.aop.joinpoint import (
     Joinpoint,
     is_intercepted, get_intercepted,
     _apply_interception, _unapply_interception,
-    _get_function, find_ctx
+    _get_function, find_ctx, super_method
 )
 from b3j0f.utils.version import PY3, PY2
 
 from types import MethodType, FunctionType
 
 from inspect import isclass
+
+
+class SuperMethodTest(UTCase):
+    """
+    Test super method function.
+    """
+
+    def _test_class(self, BaseTest, namespace=False):
+
+        class Test(BaseTest):
+            pass
+
+        class FinalTest(Test):
+            pass
+        """
+        finaltest = FinalTest()
+
+        super_elt, super_ctx = super_method(name='test', ctx=finaltest)
+
+        self.assertIs(super_elt.__func__, FinalTest.test.__func__)
+        self.assertIs(super_ctx, FinalTest)
+
+        super_elt, super_ctx = super_method(name='test', ctx=FinalTest)
+
+        self.assertIs(
+            None if PY2 and namespace else super_elt.__func__,
+            None if PY2 and namespace else Test.test.__func__
+        )
+        self.assertIs(super_ctx, None if PY2 and namespace else Test)
+        """
+        super_elt, super_ctx = super_method(name='test', ctx=Test)
+
+        self.assertIs(
+            None if PY2 and namespace else super_elt.__func__,
+            None if PY2 and namespace else BaseTest.test.__func__
+        )
+        self.assertIs(super_ctx, None if PY2 and namespace else BaseTest)
+
+        super_elt, super_ctx = super_method(name='test', ctx=BaseTest)
+
+        self.assertIs(super_elt, None)
+        self.assertIs(super_ctx, None if PY2 and namespace else object)
+
+    def test_namepsace(self):
+
+        class BaseTest:
+            def test(self):
+                pass
+
+        self._test_class(BaseTest, namespace=True)
+
+    def test_class(self):
+
+        class BaseTest(object):
+            def test(self):
+                pass
+
+        self._test_class(BaseTest)
 
 
 class FindCTXTest(UTCase):

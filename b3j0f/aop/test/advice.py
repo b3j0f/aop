@@ -29,7 +29,7 @@ from unittest import main
 
 from b3j0f.utils.version import PY2
 from b3j0f.utils.ut import UTCase
-from b3j0f.aop.advice import Advice, weave, unweave, weave_on
+from b3j0f.aop.advice import Advice, weave, unweave, weave_on, get_advices
 
 from time import sleep
 
@@ -245,20 +245,12 @@ class WeaveTest(UTCase):
         Run assertion tests on input cls
         """
 
-        weave(target=cls, advices=self.joinpoint, pointcut='__init__', ctx=cls)
-        weave(target=cls, advices=[self.joinpoint, self.joinpoint], ctx=cls)
-        weave(
-            target=cls.B, advices=self.joinpoint, pointcut='__init__', ctx=cls.B
-        )
-        weave(
-            target=cls.B, advices=[self.joinpoint, self.joinpoint], ctx=cls.B
-        )
-        weave(
-            target=cls.C, advices=self.joinpoint, pointcut='__init__', ctx=cls.C
-        )
-        weave(
-            target=cls.C, advices=[self.joinpoint, self.joinpoint], ctx=cls.C
-        )
+        weave(target=cls, advices=[self.joinpoint, self.joinpoint])
+        weave(target=cls, advices=self.joinpoint, pointcut='__init__')
+        weave(target=cls.B, advices=[self.joinpoint, self.joinpoint])
+        weave(target=cls.B, advices=self.joinpoint, pointcut='__init__')
+        weave(target=cls.C, advices=[self.joinpoint, self.joinpoint])
+        weave(target=cls.C, advices=self.joinpoint, pointcut='__init__')
 
         cls()
         self.assertEqual(self.count, 3)
@@ -460,9 +452,9 @@ class WeaveTest(UTCase):
             def test(self):
                 pass
 
-        self._test_inherited(BaseTest)
+        self._test_inherited(BaseTest, namespace=True)
 
-    def _test_inherited(self, BaseTest):
+    def _test_inherited(self, BaseTest, namespace=False):
 
         self.count = 0
 
@@ -480,13 +472,14 @@ class WeaveTest(UTCase):
 
         self.old_count = 0
 
-        def assertCount(increment=0):
+        def assertCount(f, increment=0, py2_inc=0):
             """
-            Assert incrementation of count
+            Assert incrementation of count in executing.
             """
+            f()
             self.old_count
-            if increment > 0 and PY2:
-                increment = 1
+            if increment > 0 and namespace and PY2:
+                increment = 1 + py2_inc
             self.old_count += increment
             self.assertEqual(self.count, self.old_count)
 
@@ -494,121 +487,69 @@ class WeaveTest(UTCase):
         test2 = Test()
         basetest = BaseTest()
         basetest2 = BaseTest()
-
-        test.test()
-        assertCount()
-        test2.test()
-        assertCount()
-        basetest.test()
-        assertCount()
-        basetest2.test()
-        assertCount()
+        """
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
 
         weave(target=test.test, advices=advice, ctx=test)
 
-        test.test()
-        assertCount(1)
-        test2.test()
-        assertCount()
-        assertCount()
-        basetest.test()
-        assertCount()
-        basetest2.test()
-        assertCount()
+        assertCount(test.test, 1)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
 
         unweave(target=test.test, ctx=test)
 
-        test.test()
-        assertCount()
-        test2.test()
-        assertCount()
-        basetest.test()
-        assertCount()
-        basetest2.test()
-        assertCount()
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
 
         weave(target=basetest.test, advices=advice, ctx=basetest)
 
-        test.test()
-        assertCount()
-        test2.test()
-        assertCount()
-        basetest2.test()
-        assertCount()
-        basetest.test()
-        assertCount(1)
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test)
 
         unweave(target=basetest.test, ctx=basetest)
 
-        test.test()
-        assertCount()
-        test2.test()
-        assertCount()
-        basetest2.test()
-        assertCount()
-        basetest.test()
-        assertCount()
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
 
         weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
 
-        test.test()
-        assertCount(1)
-        test2.test()
-        assertCount(1)
-        basetest2.test()
-        assertCount(1)
-        basetest.test()
-        assertCount(1)
+        assertCount(test.test, 1)
+        assertCount(test2.test, 1)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
 
         unweave(target=BaseTest.test, ctx=BaseTest)
 
-        test.test()
-        assertCount()
-        test2.test()
-        assertCount()
-        basetest2.test()
-        assertCount()
-        basetest.test()
-        assertCount()
-
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+        """
         weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
         weave(target=Test.test, advices=advice, ctx=Test)
         weave(target=test.test, advices=advice, ctx=test)
-
-        test.test()
-        assertCount(3)
-        test2.test()
-        assertCount(2)
-        basetest2.test()
-        assertCount(1)
-        basetest.test()
-        assertCount(1)
+        print get_advices(test.test)
+        assertCount(test.test, 3, py2_inc=1)
+        assertCount(test2.test, 2)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
 
         unweave(target=Test.test, ctx=Test)
 
-        test.test()
-        assertCount(3)
-        test2.test()
-        assertCount(1)
-        basetest2.test()
-        assertCount(1)
-        basetest.test()
-        assertCount(1)
-
-    def plop(self):
-
-        class A:
-            def test(self):
-                pass
-
-        class B(A):
-            pass
-
-        b = B()
-
-        weave(target=A.test, advices=lambda: None, ctx=A)
-        weave(target=B.test, advices=lambda: None, ctx=B)
-        weave(target=b.test, advices=lambda: None, ctx=b)
+        assertCount(test.test, 3)
+        assertCount(test2.test, 0 if PY2 and namespace else 1)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
 
     def test_instance_method(self):
 
@@ -797,12 +738,12 @@ class WeaveOnTest(UTCase):
         Run assertion tests on input cls
         """
 
-        weave_on(advices=self.joinpoint, pointcut='__init__')(cls)
         weave_on(advices=[self.joinpoint, self.joinpoint])(cls)
-        weave_on(advices=self.joinpoint, pointcut='__init__')(cls.B)
+        weave_on(advices=self.joinpoint, pointcut='__init__')(cls)
         weave_on(advices=[self.joinpoint, self.joinpoint])(cls.B)
-        weave_on(advices=self.joinpoint, pointcut='__init__')(cls.C)
+        weave_on(advices=self.joinpoint, pointcut='__init__')(cls.B)
         weave_on(advices=[self.joinpoint, self.joinpoint])(cls.C)
+        weave_on(advices=self.joinpoint, pointcut='__init__')(cls.C)
 
         cls()
         cls.B()
