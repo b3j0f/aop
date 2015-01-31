@@ -74,6 +74,22 @@ class FindCTXTest(UTCase):
         ctx = find_ctx(test)
         self.assertIsNone(ctx)
 
+    def test_namespace(self):
+
+        class A:
+            pass
+
+        ctx = find_ctx(A)
+        self.assertIs(ctx, A)
+
+    def test_class(self):
+
+        class A(object):
+            pass
+
+        ctx = find_ctx(A)
+        self.assertIs(ctx, A)
+
 
 class JoinpointProceedingTest(UTCase):
     """

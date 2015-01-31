@@ -96,8 +96,8 @@ class WeaveTest(UTCase):
 
         self.assertEqual(self.count, 4)
 
-        unweave(A.a)
-        unweave(A)
+        unweave(A.a, ctx=A)
+        unweave(A, ctx=A)
 
         A()
         a.a()
@@ -245,12 +245,20 @@ class WeaveTest(UTCase):
         Run assertion tests on input cls
         """
 
-        weave(target=cls, advices=self.joinpoint, pointcut='__init__')
-        weave(target=cls, advices=[self.joinpoint, self.joinpoint])
-        weave(target=cls.B, advices=self.joinpoint, pointcut='__init__')
-        weave(target=cls.B, advices=[self.joinpoint, self.joinpoint])
-        weave(target=cls.C, advices=self.joinpoint, pointcut='__init__')
-        weave(target=cls.C, advices=[self.joinpoint, self.joinpoint])
+        weave(target=cls, advices=self.joinpoint, pointcut='__init__', ctx=cls)
+        weave(target=cls, advices=[self.joinpoint, self.joinpoint], ctx=cls)
+        weave(
+            target=cls.B, advices=self.joinpoint, pointcut='__init__', ctx=cls.B
+        )
+        weave(
+            target=cls.B, advices=[self.joinpoint, self.joinpoint], ctx=cls.B
+        )
+        weave(
+            target=cls.C, advices=self.joinpoint, pointcut='__init__', ctx=cls.C
+        )
+        weave(
+            target=cls.C, advices=[self.joinpoint, self.joinpoint], ctx=cls.C
+        )
 
         cls()
         self.assertEqual(self.count, 3)
@@ -436,73 +444,25 @@ class WeaveTest(UTCase):
 
     def test_inherited_instance_method(self):
 
+        class BaseTest:
+
+            def test(self):
+                pass
+
+        self._test_inherited(BaseTest)
+
+    def test_inherited_instance_method_with_container(self):
+
         self.count = 0
 
         class BaseTest:
-            def __init__(self, testcase):
-                self.testcase = testcase
 
             def test(self):
-                self.testcase.count += 1
+                pass
 
-        class Test(BaseTest):
-            pass
+        self._test_inherited(BaseTest)
 
-        test = Test(self)
-        test2 = Test(self)
-        basetest = BaseTest(self)
-        basetest2 = BaseTest(self)
-
-        test.test()
-        test2.test()
-        basetest.test()
-        basetest2.test()
-        self.assertEqual(self.count, 4)
-
-        weave(target=test.test, advices=lambda ae: None)
-
-        test.test()
-        test2.test()
-        self.assertEqual(self.count, 5)
-
-        basetest.test()
-        basetest2.test()
-        self.assertEqual(self.count, 7)
-
-        unweave(target=test.test)
-
-        test.test()
-        self.assertEqual(self.count, 8)
-
-        weave(target=basetest.test, advices=lambda ae: None)
-
-        test.test()
-        test2.test()
-        basetest2.test()
-        self.assertEqual(self.count, 11)
-
-        basetest.test()
-        self.assertEqual(self.count, 11)
-
-        unweave(target=basetest.test)
-
-        test.test()
-        test2.test()
-        basetest2.test()
-        basetest.test()
-        self.assertEqual(self.count, 15)
-
-        weave(target=BaseTest.test, advices=lambda ae: None)
-
-        test.test()
-        test2.test()
-        basetest2.test()
-        basetest.test()
-        self.assertEqual(self.count, 15)
-
-        unweave(target=BaseTest.test)
-
-    def test_inherited_instance_method_with_container(self):
+    def _test_inherited(self, BaseTest):
 
         self.count = 0
 
@@ -518,18 +478,17 @@ class WeaveTest(UTCase):
             self.count += 1
             return jp.proceed()
 
-        global old_count
-        old_count = 0
+        self.old_count = 0
 
         def assertCount(increment=0):
             """
             Assert incrementation of count
             """
-            global old_count
+            self.old_count
             if increment > 0 and PY2:
                 increment = 1
-            old_count += increment
-            self.assertEqual(self.count, old_count)
+            self.old_count += increment
+            self.assertEqual(self.count, self.old_count)
 
         test = Test()
         test2 = Test()

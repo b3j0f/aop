@@ -33,7 +33,7 @@ from re import compile as re_compile
 from uuid import uuid4 as uuid
 
 from inspect import (
-    getmembers, isroutine, isclass
+    getmembers, isroutine
 )
 
 from opcode import opmap

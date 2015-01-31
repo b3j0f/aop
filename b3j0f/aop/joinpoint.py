@@ -93,6 +93,9 @@ def find_ctx(elt):
         if result is None and PY2:
             result = elt.im_class
 
+    elif isclass(elt):
+        result = elt
+
     return result
 
 
@@ -756,9 +759,10 @@ def _unapply_interception(target, ctx=None):
 
     if del_joinpoint_function:
         # delete _INTERCEPTED and _INTERCEPTED_CTX from joinpoint_function
-        delattr(joinpoint_function, _INTERCEPTED)
-        if hasattr(joinpoint_function, _INTERCEPTED_CTX):
-            delattr(joinpoint_function, _INTERCEPTED_CTX)
+        if hasattr(joinpoint_function, _INTERCEPTED):
+            delattr(joinpoint_function, _INTERCEPTED)
+            if hasattr(joinpoint_function, _INTERCEPTED_CTX):
+                delattr(joinpoint_function, _INTERCEPTED_CTX)
         del joinpoint_function
 
 
