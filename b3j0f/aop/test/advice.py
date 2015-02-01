@@ -448,9 +448,9 @@ class WeaveTest(UTCase):
             def test(self):
                 pass
 
-        self._test_inherited(BaseTest, namespace=True)
+        self._test_inherited(BaseTest)
 
-    def _test_inherited(self, BaseTest, namespace=False):
+    def _test_inherited(self, BaseTest):
 
         self.count = 0
 
@@ -463,14 +463,12 @@ class WeaveTest(UTCase):
 
         self.old_count = 0
 
-        def assertCount(f, increment=0, py2_inc=0):
+        def assertCount(f, increment=0):
             """
             Assert incrementation of count in executing.
             """
             f()
             self.old_count
-            if increment > 0 and namespace and PY2:
-                increment = 1 + py2_inc
             self.old_count += increment
             self.assertEqual(self.count, self.old_count)
 
@@ -530,7 +528,7 @@ class WeaveTest(UTCase):
         weave(target=Test.test, advices=advice, ctx=Test)
         weave(target=test.test, advices=advice, ctx=test)
 
-        assertCount(test.test, 3, py2_inc=1)
+        assertCount(test.test, 3)
         assertCount(test2.test, 2)
         assertCount(basetest.test, 1)
         assertCount(basetest2.test, 1)
@@ -538,7 +536,7 @@ class WeaveTest(UTCase):
         unweave(target=Test.test, ctx=Test)
 
         assertCount(test.test, 2)
-        assertCount(test2.test, 0 if PY2 and namespace else 1)
+        assertCount(test2.test, 1)
         assertCount(basetest.test, 1)
         assertCount(basetest2.test, 1)
 

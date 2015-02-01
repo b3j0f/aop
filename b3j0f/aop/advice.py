@@ -32,9 +32,7 @@ from re import compile as re_compile
 
 from uuid import uuid4 as uuid
 
-from inspect import (
-    getmembers, isroutine, isclass
-)
+from inspect import getmembers, isroutine, isclass
 
 from opcode import opmap
 
@@ -50,9 +48,7 @@ from b3j0f.aop.joinpoint import (
 from b3j0f.utils.version import basestring
 
 __all__ = [
-    'AdviceError', 'get_advices',
-    'weave', 'unweave', 'weave_on',
-    'Advice'
+    'AdviceError', 'get_advices', 'weave', 'unweave', 'weave_on', 'Advice'
 ]
 
 # consts for interception loading
@@ -165,47 +161,54 @@ def get_advices(target, ctx=None, local=False):
         if ctx is not None:
             # get target name
             target_name = target.__name__
-            # resolve target
-            _target = getattr(ctx, target_name, None)
-            # get intercepted_target in order to compare with super targets
-            intercepted_target, _ = get_intercepted(target)
-            # get super ctx
+            # resolve target and _target_ctx
             _target_ctx = ctx
-            # climb back class hierarchy tree through all super targets
-            while _target is not None and _target_ctx is not None:
-                # check if _target is intercepted
-                if is_intercepted(_target):
-                    # get intercepted ctx
-                    intercepted_fn, intercepted_ctx = get_intercepted(_target)
-                    # if intercepted ctx is ctx
+            _target = getattr(_target_ctx, target_name, None)
+            # check if _target is intercepted
+            if is_intercepted(_target):
+                # get intercepted_target in order to compare with super targets
+                intercepted_target, intercepted_ctx = get_intercepted(_target)
+                # if ctx is not a class
+                if not isclass(ctx):
                     if intercepted_ctx is _target_ctx:
-                        # get advices from _target interception
-                        interception_function = _get_function(_target)
-                        advices = getattr(interception_function, _ADVICES, [])
+                        interception_fn = _get_function(_target)
+                        advices = getattr(interception_fn, _ADVICES, [])
                         result += advices
-                        # update _target
-                        if isclass(_target_ctx):  # if class, get super method
+                        _target_ctx = _target_ctx.__class__
+                        _target = getattr(_target_ctx, target_name, None)
+                # climb back class hierarchy tree through all super targets
+                while _target is not None and _target_ctx is not None:
+                    # check if _target is intercepted
+                    if is_intercepted(_target):
+                        # get intercepted ctx
+                        intercepted_fn, intercepted_ctx = get_intercepted(
+                            _target
+                        )
+                        # if intercepted ctx is ctx
+                        if intercepted_ctx is _target_ctx:
+                            # get advices from _target interception
+                            interception_fn = _get_function(_target)
+                            advices = getattr(interception_fn, _ADVICES, [])
+                            result += advices
+                            # update _target
                             _target, _target_ctx = super_method(
                                 name=target_name, ctx=_target_ctx
                             )
-                        else:  # else get class method
-                            _target_ctx = _target_ctx.__class__
+                        else:  # else _target_ctx is intercepted_ctx
+                            _target_ctx = intercepted_ctx
+                            # and update _target
                             _target = getattr(_target_ctx, target_name, None)
-                    else:  # else _target_ctx is intercepted_ctx
-                        _target_ctx = intercepted_ctx
-                        # and update _target
-                        _target = getattr(_target_ctx, target_name, None)
-                else:  # else, intercepted_fn is _target function
-                    intercepted_fn = _get_function(_target)
-                    _target, _target_ctx = super_method(
-                        name=target_name, ctx=_target_ctx
-                    )
-                # if intercepted are different, stop iteration
-                if intercepted_target is not intercepted_fn:
-                    break
+                    else:  # else, intercepted_fn is _target function
+                        intercepted_fn = _get_function(_target)
+                        _target, _target_ctx = super_method(
+                            name=target_name, ctx=_target_ctx
+                        )
+                    # if intercepted are different, stop iteration
+                    if intercepted_target is not intercepted_fn:
+                        break
 
-                if local:  # break if local has been requested
-                    break
+                    if local:  # break if local has been requested
+                        break
 
         else:
             # get advices from interception function

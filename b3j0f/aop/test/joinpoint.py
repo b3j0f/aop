@@ -46,49 +46,52 @@ class SuperMethodTest(UTCase):
     Test super method function.
     """
 
-    def _test_class(self, BaseTest, namespace=False):
+    def _test_class(self, BaseTest):
 
         class Test(BaseTest):
             pass
 
         class FinalTest(Test):
             pass
-        """
+
         finaltest = FinalTest()
 
         super_elt, super_ctx = super_method(name='test', ctx=finaltest)
 
-        self.assertIs(super_elt.__func__, FinalTest.test.__func__)
+        self.assertIs(
+            super_elt.__func__,
+            FinalTest.test.__func__ if PY2 else FinalTest.test
+        )
         self.assertIs(super_ctx, FinalTest)
 
         super_elt, super_ctx = super_method(name='test', ctx=FinalTest)
 
         self.assertIs(
-            None if PY2 and namespace else super_elt.__func__,
-            None if PY2 and namespace else Test.test.__func__
+            super_elt.__func__ if PY2 else super_elt,
+            Test.test.__func__ if PY2 else Test.test
         )
-        self.assertIs(super_ctx, None if PY2 and namespace else Test)
-        """
+        self.assertIs(super_ctx, Test)
+
         super_elt, super_ctx = super_method(name='test', ctx=Test)
 
         self.assertIs(
-            None if PY2 and namespace else super_elt.__func__,
-            None if PY2 and namespace else BaseTest.test.__func__
+            super_elt.__func__ if PY2 else super_elt,
+            BaseTest.test.__func__ if PY2 else BaseTest.test
         )
-        self.assertIs(super_ctx, None if PY2 and namespace else BaseTest)
+        self.assertIs(super_ctx, BaseTest)
 
         super_elt, super_ctx = super_method(name='test', ctx=BaseTest)
 
         self.assertIs(super_elt, None)
-        self.assertIs(super_ctx, None if PY2 and namespace else object)
+        self.assertIs(super_ctx, None)
 
-    def test_namepsace(self):
+    def test_namespace(self):
 
         class BaseTest:
             def test(self):
                 pass
 
-        self._test_class(BaseTest, namespace=True)
+        self._test_class(BaseTest)
 
     def test_class(self):
 

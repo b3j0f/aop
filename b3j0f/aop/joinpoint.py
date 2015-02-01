@@ -35,7 +35,7 @@ object.
 
 from inspect import (
     isbuiltin, ismethod, isclass, isfunction, getmodule, getmembers, getfile,
-    getargspec, isroutine
+    getargspec, isroutine, getmro
 )
 
 from opcode import opmap
@@ -110,6 +110,10 @@ def base_ctx(ctx):
 
     if isclass(ctx):
         result = getattr(ctx, '__base__', None)
+        if result is None:
+            mro = getmro(ctx)
+            if len(mro) > 1:
+                result = mro[1]
     else:
         result = ctx.__class__
 
@@ -125,18 +129,21 @@ def super_method(name, ctx):
     :rtype: tuple
     """
 
-    result = None
+    result = None, None
 
-    # get base ctx
-    super_ctx = base_ctx(ctx)
-    # try to get base method from multiple inheritance
-    try:
-        _ctx = ctx if isclass(ctx) else ctx.__class__
-        super_ref = super(_ctx, ctx)
-    except TypeError:
-        super_ref = super_ctx
-    # get base interception
-    result = getattr(super_ref, name, None), super_ctx
+    # get class ctx
+    if isclass(ctx):
+        _ctx = ctx
+        first_mro = 1
+    else:
+        _ctx = ctx.__class__
+        first_mro = 0
+    # get class hierachy
+    mro = getmro(_ctx)
+    for cls in mro[first_mro:]:
+        if hasattr(cls, name):
+            result = getattr(cls, name), cls
+            break
 
     return result
 
