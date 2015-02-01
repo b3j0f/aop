@@ -3,22 +3,62 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to b3j0f.aop's documentation!
-=====================================
+b3j0f.aop: Aspect Oriented Programming for Python
+=================================================
+
+.. image:: https://travis-ci.org/b3j0f/aop.svg?branch=master
+    :target: https://travis-ci.org/b3j0f/aop
+
+This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
 
-This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
-
 Installation
 ------------
 
 pip install b3j0f.aop
+
+Examples
+--------
+
+How to change the behaviour of min by max ?
+
+>>> from b3j0f.aop import weave, is_intercepted
+>>> advice = lambda joinpoint: max(*joinpoint.args)
+>>> weave(target=min, advices=advice)
+>>> min(6, 7)
+7
+
+How to check if a function is intercepted ?
+
+>>> from b3j0f.aop import is_intercepted
+>>> is_intercepted(min)
+True
+
+Ok, let's get back its previous behaviour ...
+
+>>> from b3j0f.aop import unweave
+>>> unweave(min)
+>>> min(6, 7)
+6
+>>> is_intercepted(min)
+False
+
+And with an annotation ?
+
+>>> from b3j0f.aop import weave_on
+>>> weave_on(advices=advice)(min)
+>>> min(6, 7)
+7
+>>> is_intercepted(min)
+False
+
+Enjoy ...
 
 Improvements
 ------------
@@ -115,3 +155,14 @@ pytilities
 - open-source and use limitations: GPL 3.
 - not maintenable: missing documentations and not respect of the PEP8.
 - Executon time is not optimized with several classes used with generic getters without using __slots__. The only one optimization comes from the yield which requires from users to use it in their own advices (which must be a class).
+
+Perspectives
+------------
+
+- Cython implementation.
+- Generated documentation.
+
+Documentation
+-------------
+
+http://pythonhosted.org/b3j0f.aop
