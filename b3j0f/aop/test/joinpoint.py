@@ -59,7 +59,7 @@ class SuperMethodTest(UTCase):
         super_elt, super_ctx = super_method(name='test', ctx=finaltest)
 
         self.assertIs(
-            super_elt.__func__,
+            super_elt.__func__ if PY2 else super_elt,
             FinalTest.test.__func__ if PY2 else FinalTest.test
         )
         self.assertIs(super_ctx, FinalTest)
