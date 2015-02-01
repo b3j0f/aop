@@ -720,7 +720,10 @@ def _unapply_interception(target, ctx=None):
         # get interception name in order to update/delete interception from ctx
         intercepted_name = intercepted.__name__
         # should we change of target or is it inherited ?
-        base_interception, _ = super_method(name=intercepted_name, ctx=ctx)
+        if isclass(ctx):
+            base_interception, _ = super_method(name=intercepted_name, ctx=ctx)
+        else:
+            base_interception = getattr(ctx.__class__, intercepted_name, None)
         # if base interception does not exist
         if base_interception is None:  # recover intercepted
             recover = True

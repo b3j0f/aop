@@ -33,7 +33,7 @@ from re import compile as re_compile
 from uuid import uuid4 as uuid
 
 from inspect import (
-    getmembers, isroutine
+    getmembers, isroutine, isclass
 )
 
 from opcode import opmap
@@ -47,7 +47,7 @@ from b3j0f.aop.joinpoint import (
     _unapply_interception, is_intercepted, _get_function, Joinpoint, find_ctx,
     super_method, get_intercepted, base_ctx
 )
-from b3j0f.utils.version import basestring, PY2
+from b3j0f.utils.version import basestring
 
 __all__ = [
     'AdviceError', 'get_advices',
@@ -101,13 +101,13 @@ def _add_advices(target, advices):
     :param bool ordered: ensure advices to add will be done in input order
     """
 
-    interception_function = _get_function(target)
+    interception_fn = _get_function(target)
 
-    target_advices = getattr(interception_function, _ADVICES, [])
+    target_advices = getattr(interception_fn, _ADVICES, [])
 
     target_advices += advices
 
-    setattr(interception_function, _ADVICES, target_advices)
+    setattr(interception_fn, _ADVICES, target_advices)
 
 
 def _remove_advices(target, advices, ctx):
@@ -122,9 +122,9 @@ def _remove_advices(target, advices, ctx):
         if intercepted_ctx is None or intercepted_ctx is not ctx:
             return
 
-    interception_function = _get_function(target)
+    interception_fn = _get_function(target)
 
-    target_advices = getattr(interception_function, _ADVICES, None)
+    target_advices = getattr(interception_fn, _ADVICES, None)
 
     if target_advices is not None:
 
@@ -136,10 +136,10 @@ def _remove_advices(target, advices, ctx):
             ]
 
         if target_advices:  # update target advices
-            setattr(interception_function, _ADVICES, target_advices)
+            setattr(interception_fn, _ADVICES, target_advices)
 
         else:  # free target advices if necessary
-            delattr(interception_function, _ADVICES)
+            delattr(interception_fn, _ADVICES)
             _unapply_interception(target, ctx=ctx)
 
 
@@ -157,7 +157,6 @@ def get_advices(target, ctx=None, local=False):
     """
 
     result = []
-
     if is_intercepted(target):
         # find ctx if not given
         if ctx is None:
@@ -173,7 +172,7 @@ def get_advices(target, ctx=None, local=False):
             # get super ctx
             _target_ctx = ctx
             # climb back class hierarchy tree through all super targets
-            while (_target, _target_ctx) != (None, None):
+            while _target is not None and _target_ctx is not None:
                 # check if _target is intercepted
                 if is_intercepted(_target):
                     # get intercepted ctx
@@ -185,9 +184,13 @@ def get_advices(target, ctx=None, local=False):
                         advices = getattr(interception_function, _ADVICES, [])
                         result += advices
                         # update _target
-                        _target, _target_ctx = super_method(
-                            name=target_name, ctx=_target_ctx
-                        )
+                        if isclass(_target_ctx):  # if class, get super method
+                            _target, _target_ctx = super_method(
+                                name=target_name, ctx=_target_ctx
+                            )
+                        else:  # else get class method
+                            _target_ctx = _target_ctx.__class__
+                            _target = getattr(_target_ctx, target_name, None)
                     else:  # else _target_ctx is intercepted_ctx
                         _target_ctx = intercepted_ctx
                         # and update _target
@@ -358,7 +361,13 @@ def _weave(
             if (not apply_poincut) and ctx is not None:
                 # apply poincut if ctx is not intercepted_ctx
                 intercepted_fn, intercepted_ctx = get_intercepted(target)
+                # if previous weave was done directly on the function
+                if intercepted_ctx is None:
+                    # update intercepted_ctx on target
+                    intercepted_ctx = interception_fn._intercepted_ctx = ctx
+                # if old ctx and the new one are same
                 if ctx is not intercepted_ctx:
+                    # apply pointcut
                     apply_poincut = True
                     # and update interception_fn
                     interception_fn = intercepted_fn
@@ -495,7 +504,6 @@ def weave_on(advices, pointcut=None, ctx=None, depth=1, ttl=None):
     """
 
     def __weave(target):
-
         weave(
             target=target, advices=advices, pointcut=pointcut,
             ctx=ctx, depth=depth, ttl=ttl
