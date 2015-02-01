@@ -6,13 +6,6 @@ b3j0f.aop: Aspect Oriented Programming for Python
 
 This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
 
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
 Installation
 ------------
 
@@ -51,7 +44,7 @@ And with an annotation ?
 >>> min(6, 7)
 7
 >>> is_intercepted(min)
-False
+True
 
 Enjoy ...
 

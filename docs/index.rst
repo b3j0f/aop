@@ -56,7 +56,7 @@ And with an annotation ?
 >>> min(6, 7)
 7
 >>> is_intercepted(min)
-False
+True
 
 Enjoy ...
 
