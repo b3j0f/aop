@@ -6,10 +6,50 @@
 b3j0f.aop: Aspect Oriented Programming for Python
 =================================================
 
-.. image:: https://travis-ci.org/b3j0f/aop.svg?branch=master
-    :target: https://travis-ci.org/b3j0f/aop
-
 This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
+
+.. image:: https://pypip.in/license/b3j0f.aop/badge.svg
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
+   :alt: License
+
+.. image:: https://pypip.in/status/b3j0f.aop/badge.svg
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
+   :alt: Development Status
+
+.. image:: https://pypip.in/version/b3j0f.aop/badge.svg?text=version
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
+   :alt: Latest release
+
+.. image:: https://pypip.in/py_versions/b3j0f.aop/badge.svg
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
+   :alt: Supported Python versions
+
+.. image:: https://pypip.in/implementation/b3j0f.aop/badge.svg
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
+   :alt: Supported Python implementations
+
+.. image:: https://pypip.in/format/b3j0f.aop/badge.svg
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
+   :alt: Download format
+
+.. image:: https://travis-ci.org/b3j0f/aop.svg?branch=master
+   :target: https://travis-ci.org/b3j0f/aop
+   :alt: Build status
+
+.. image:: https://coveralls.io/repos/b3j0f/aop/badge.png
+   :target: https://coveralls.io/r/b3j0f/aop
+   :alt: Code test coverage
+
+.. image:: https://pypip.in/download/b3j0f.aop/badge.svg?period=month
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
+   :alt: Downloads
+
+Links
+-----
+
+- `Homepage`_
+- `PyPI`_
+- `Documentation`_
 
 Indices and tables
 ------------------
@@ -22,6 +62,36 @@ Installation
 ------------
 
 pip install b3j0f.aop
+
+Features
+--------
+
+1. Free and unlimited access: no limit to idea and to knowledge sharing with the license MIT.
+
+2. Performance:
+
+   - less memory consumption in using the __slots__ class property.
+   - less time on (un-)weaving and advice application improvement with binary python encoding and in using constants var in code.
+   - (dis/en)abling advices without remove them in using dedicated Advice class.
+
+3. Easy to use:
+
+   - joinpoint matching with function or regex.
+   - distributed programming:
+
+      + interception context sharing in order to ease behaviour sharing between advices.
+      + uuid for advice identification in order to ease its use in a distributed context.
+
+   - maintenable with well named variables and functions, comments and few lines.
+   - extensible through pythonic code (PEP8), same logic to function code interception and concern modularisation with one module by joinpoint or advice.
+   - respect of aspects vocabulary in order to ease its use among AOP users.
+   - close to callable python objects in weaving all types of callable elements such as (built-in) functions, (built-in) class, (built-in) methods, callable objects, etc.
+   - advices are callable objects.
+   - Unit tests for all functions such as examples.
+
+4. Benchmark:
+
+   - speed execution
 
 Examples
 --------
@@ -59,42 +129,6 @@ And with an annotation ?
 True
 
 Enjoy ...
-
-Improvements
-------------
-
-1. Free and unlimited access: no limit to idea and to knowledge sharing with the license MIT.
-
-2. Performance:
-
-   - less memory consumption in using the __slots__ class property.
-   - less time on (un-)weaving and advice application improvement with binary python encoding and in using constants var in code.
-   - (dis/en)abling advices without remove them in using dedicated Advice class.
-
-3. Easy to use:
-
-   - joinpoint matching with function or regex.
-   - distributed programming:
-
-      + interception context sharing in order to ease behaviour sharing between advices.
-      + uuid for advice identification in order to ease its use in a distributed context.
-
-   - maintenable with well named variables and functions, comments and few lines.
-   - extensible through pythonic code (PEP8), same logic to function code interception and concern modularisation with one module by joinpoint or advice.
-   - respect of aspects vocabulary in order to ease its use among AOP users.
-   - close to callable python objects in weaving all types of callable elements such as (built-in) functions, (built-in) class, (built-in) methods, callable objects, etc.
-   - advices are callable objects.
-   - Unit tests for all functions such as examples.
-
-4. Benchmark:
-
-   - speed execution
-
-Limitations
------------
-
-- does not weave on builtin classes
-- does not weave on classes on python versions >= 3.3
 
 State of the art
 ----------------
@@ -162,7 +196,13 @@ Perspectives
 - Cython implementation.
 - Generated documentation.
 
-Documentation
--------------
+Donating
+--------
 
-http://pythonhosted.org/b3j0f.aop
+.. image:: https://cdn.rawgit.com/gratipay/gratipay-badge/2.3.0/dist/gratipay.png
+   :target: https://gratipay.com/b3j0f/
+   :alt: I'm grateful for gifts, but don't have a specific funding goal.
+
+.. _Homepage: https://github.com/b3j0f/aop
+.. _Documentation: http://pythonhosted.org/b3j0f.aop
+.. _PyPI: https://pypi.python.org/pypi/b3j0f.aop/
