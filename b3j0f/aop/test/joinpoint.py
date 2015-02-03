@@ -228,6 +228,7 @@ class JoinpointProceedingTest(UTCase):
 
         class Test:
             pass
+
         self._test_joinpoint_proceeding(
             target=Test, ctx=Test, args=[Test()]
         )

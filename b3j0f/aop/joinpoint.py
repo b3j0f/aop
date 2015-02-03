@@ -365,11 +365,19 @@ class Joinpoint(object):
         if function is None:
             function = _get_function(target)
 
+        # flag which indicates that the function is not a pure python function
+        # and has to be wrapped
+        wrap_function = False
+
         try:
             # get params from target
             args, varargs, kwargs, _ = getargspec(function)
         except TypeError:
-            # if function is not a python function, create a generic one
+            # in case of error, wrap the function
+            wrap_function = True
+
+        if wrap_function:
+            # if function is not pure python, create a generic one
             # with assignments
             assigned = []
             for wrapper_assignment in WRAPPER_ASSIGNMENTS:
