@@ -367,7 +367,7 @@ class Joinpoint(object):
 
         # flag which indicates that the function is not a pure python function
         # and has to be wrapped
-        wrap_function = False
+        wrap_function = not hasattr(function, '__code__')
 
         try:
             # get params from target
