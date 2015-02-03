@@ -54,7 +54,7 @@ pip install b3j0f.aop
 Features
 --------
 
-1. Free and unlimited access: no limit to idea and to knowledge sharing with the license MIT.
+1. Free and unlimited access: no limits to sharing of ideas and knowledges with the license MIT.
 
 2. Performance:
 
@@ -87,10 +87,10 @@ Examples
 How to change the behaviour of min by max ?
 
 >>> from b3j0f.aop import weave, is_intercepted
->>> advice = lambda joinpoint: max(*joinpoint.args)
->>> weave(target=min, advices=advice)
+>>> double_advice = lambda joinpoint: joinpoint.proceed() * 2
+>>> weave(target=min, advices=double_advice)
 >>> min(6, 7)
-7
+12
 
 How to check if a function is intercepted ?
 
@@ -110,11 +110,12 @@ False
 And with an annotation ?
 
 >>> from b3j0f.aop import weave_on
->>> weave_on(advices=advice)(min)
+>>> weave_on(advices=double_advice)(min)
 >>> min(6, 7)
-7
+12
 >>> is_intercepted(min)
 True
+>>> unweave(min)  # do not forget to unweave if weaving is useless ;)
 
 Enjoy ...
 
@@ -142,6 +143,9 @@ Related to improving criteria points (1. Free and unlimited access, etc.), a sta
 pyaspects
 #########
 
+weaknesses
+>>>>>>>>>>
+
 - Not functional approach: Aspect class definition.
 - Side effects: Not close to python API.
 - Not optimized Weaving and Time execution: use classes and generic methods.
@@ -152,15 +156,24 @@ pyaspects
 aspects
 #######
 
+weaknesses
+>>>>>>>>>>
+
 - open-source and use limitations: LGPL 2.1.
-- more difficulties to understand code with no respect of the AOP vocabulary, packaged into one module and more than 600 files.
+- more difficulties to understand code with no respect of the AOP vocabulary, packaged into one module.
 - limited in weave filtering.
 
 aspect
 ######
 
+strengths
+>>>>>>>>>>>>
+
 + invert the AOP in decorating advices with joinpoint instead of weaving advices on joinpoint.
 + open-source and no use limitations: BSD.
+
+weaknesses
+>>>>>>>>>>
 
 - Simple and functional approach with use of python tools.
 - maintenable: commented in respect of the PEP8.
@@ -172,7 +185,13 @@ spring
 pytilities
 ##########
 
+strenghts
+>>>>>>>>>
+
 + Very complex and full library for doing aspects and other things.
+
+weaknesses
+>>>>>>>>>>
 
 - open-source and use limitations: GPL 3.
 - not maintenable: missing documentations and not respect of the PEP8.

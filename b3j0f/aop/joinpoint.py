@@ -463,7 +463,6 @@ class Joinpoint(object):
         newcodestr = join(
             (newcodestr, "{0}return {1}()\n".format(indent, start))
         )
-
         # compile newcodestr
         code = compile(newcodestr, __file__, 'single')
 
@@ -644,11 +643,11 @@ def _apply_interception(
                     args.append(ctx.__class__)
             # instantiate a new method
             interception = MethodType(*args)
-            # get the right intercepted function
-            if is_intercepted(intercepted):
-                intercepted, _ = get_intercepted(intercepted)
-            else:
-                intercepted = _get_function(intercepted)
+        # get the right intercepted function
+        if is_intercepted(intercepted):
+            intercepted, _ = get_intercepted(intercepted)
+        else:
+            intercepted = _get_function(intercepted)
         # set in ctx the new method
         setattr(ctx, target_name, interception)
 

@@ -82,7 +82,7 @@ class _Joinpoint(Joinpoint):
 
     def get_advices(self, target):
 
-        result = get_advices(target)
+        result = get_advices(target, ctx=self.ctx)
 
         return result
 
@@ -100,7 +100,6 @@ def _add_advices(target, advices):
     interception_fn = _get_function(target)
 
     target_advices = getattr(interception_fn, _ADVICES, [])
-
     target_advices += advices
 
     setattr(interception_fn, _ADVICES, target_advices)
@@ -169,7 +168,7 @@ def get_advices(target, ctx=None, local=False):
                 # get intercepted_target in order to compare with super targets
                 intercepted_target, intercepted_ctx = get_intercepted(_target)
                 # if ctx is not a class
-                if not isclass(ctx):
+                if not isclass(_target_ctx):
                     if intercepted_ctx is _target_ctx:
                         interception_fn = _get_function(_target)
                         advices = getattr(interception_fn, _ADVICES, [])

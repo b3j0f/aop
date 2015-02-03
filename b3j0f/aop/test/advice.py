@@ -29,7 +29,7 @@ from unittest import main
 
 from b3j0f.utils.version import PY2
 from b3j0f.utils.ut import UTCase
-from b3j0f.aop.advice import Advice, weave, unweave, weave_on, get_advices
+from b3j0f.aop.advice import Advice, weave, unweave, weave_on
 
 from time import sleep
 
@@ -87,9 +87,9 @@ class WeaveTest(UTCase):
             def a(self):
                 pass
 
-        weave(target=A.a, advices=[self.joinpoint, self.joinpoint])
-        weave(target=A, advices=self.joinpoint, pointcut='__init__')
-        weave(target=A.__init__, advices=self.joinpoint)
+        weave(target=A.a, advices=[self.joinpoint, self.joinpoint], ctx=A)
+        weave(target=A, advices=self.joinpoint, pointcut='__init__', ctx=A)
+        weave(target=A.__init__, advices=self.joinpoint, ctx=A)
 
         a = A()
         a.a()
@@ -468,7 +468,6 @@ class WeaveTest(UTCase):
             Assert incrementation of count in executing.
             """
             f()
-            self.old_count
             self.old_count += increment
             self.assertEqual(self.count, self.old_count)
 
@@ -524,6 +523,16 @@ class WeaveTest(UTCase):
         assertCount(basetest.test)
         assertCount(basetest2.test)
 
+        weave(target=Test.test, advices=advice, ctx=Test)
+
+        assertCount(test.test, 1)
+        assertCount(test2.test, 1)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+
+        unweave(target=Test.test, ctx=Test)
+
+        # weave all
         weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
         weave(target=Test.test, advices=advice, ctx=Test)
         weave(target=test.test, advices=advice, ctx=test)
@@ -532,13 +541,151 @@ class WeaveTest(UTCase):
         assertCount(test2.test, 2)
         assertCount(basetest.test, 1)
         assertCount(basetest2.test, 1)
-
+        # remove middle interceptor
         unweave(target=Test.test, ctx=Test)
 
         assertCount(test.test, 2)
         assertCount(test2.test, 1)
         assertCount(basetest.test, 1)
         assertCount(basetest2.test, 1)
+        # remove the first
+        unweave(target=BaseTest.test, ctx=BaseTest)
+
+        assertCount(test.test, 1)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+        # remove the last
+        unweave(target=test.test, ctx=test)
+
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+
+        # weave all in opposite way
+        weave(target=test.test, advices=advice, ctx=test)
+        weave(target=Test.test, advices=advice, ctx=Test)
+        weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
+
+        assertCount(test.test, 3)
+        assertCount(test2.test, 2)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
+        # remove middle interceptor
+        unweave(target=Test.test, ctx=Test)
+
+        assertCount(test.test, 2)
+        assertCount(test2.test, 1)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
+        # remove last
+        unweave(target=BaseTest.test, ctx=BaseTest)
+
+        assertCount(test.test, 1)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+        # remove first
+        unweave(target=test.test, ctx=test)
+
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+
+        # weave all in random way
+        weave(target=Test.test, advices=advice, ctx=Test)
+        weave(target=test.test, advices=advice, ctx=test)
+        weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
+
+        assertCount(test.test, 3)
+        assertCount(test2.test, 2)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
+        # remove middle interceptor
+        unweave(target=Test.test, ctx=Test)
+
+        assertCount(test.test, 2)
+        assertCount(test2.test, 1)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
+        # remove last
+        unweave(target=BaseTest.test, ctx=BaseTest)
+
+        assertCount(test.test, 1)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+        # remove first
+        unweave(target=test.test, ctx=test)
+
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+
+        # weave all in random way
+        weave(target=Test.test, advices=advice, ctx=Test)
+        weave(target=test.test, advices=advice, ctx=test)
+        weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
+
+        assertCount(test.test, 3)
+        assertCount(test2.test, 2)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
+        # remove first interceptor
+        unweave(target=BaseTest.test, ctx=BaseTest)
+
+        assertCount(test.test, 2)
+        assertCount(test2.test, 1)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+        # remove second
+        unweave(target=Test.test, ctx=Test)
+
+        assertCount(test.test, 1)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+        # remove last
+        unweave(target=test.test, ctx=test)
+
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
+
+        # weave all in random way
+        weave(target=Test.test, advices=advice, ctx=Test)
+        weave(target=test.test, advices=advice, ctx=test)
+        weave(target=BaseTest.test, advices=advice, ctx=BaseTest)
+
+        assertCount(test.test, 3)
+        assertCount(test2.test, 2)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
+        # remove last interceptor
+        unweave(target=test.test, ctx=test)
+
+        assertCount(test.test, 2)
+        assertCount(test2.test, 2)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
+        # remove second
+        unweave(target=Test.test, ctx=Test)
+
+        assertCount(test.test, 1)
+        assertCount(test2.test, 1)
+        assertCount(basetest.test, 1)
+        assertCount(basetest2.test, 1)
+        # remove first
+        unweave(target=BaseTest.test, ctx=BaseTest)
+
+        assertCount(test.test)
+        assertCount(test2.test)
+        assertCount(basetest.test)
+        assertCount(basetest2.test)
 
     def test_instance_method(self):
 
@@ -548,19 +695,28 @@ class WeaveTest(UTCase):
 
         a = A()
 
-        self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
+        self.assertEqual(
+            a.__call__.__func__,
+            A.__call__.__func__ if PY2 else A.__call__
+        )
 
-        weave(target=a.__call__, advices=lambda ae: None)
+        weave(target=a.__call__, advices=lambda ae: None, ctx=a)
 
-        self.assertNotEqual(a.__call__, A.__call__)
+        self.assertNotEqual(
+            a.__call__.__func__,
+            A.__call__.__func__ if PY2 else A.__call__
+        )
 
-        result = a()
+        result = a.__call__()
 
         self.assertEqual(result, None)
 
-        unweave(target=a.__call__)
+        unweave(target=a.__call__, ctx=a)
 
-        self.assertIs(a.__call__.__dict__, A.__call__.__dict__)
+        self.assertEqual(
+            a.__call__.__func__,
+            A.__call__.__func__ if PY2 else A.__call__
+        )
 
         result = a()
 
