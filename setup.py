@@ -29,8 +29,6 @@ from setuptools import setup, find_packages
 
 from os.path import abspath, dirname, join
 
-from functools import reduce
-
 # get setup directory abspath
 _path = dirname(abspath(__file__))
 
@@ -40,7 +38,10 @@ with open(join(_path, 'README.rst')) as f:
 
 dependencies = ['b3j0f.utils']
 
-keywords = ['aspect', 'joinpoint', 'interception', 'interceptor']
+keywords = [
+    'aspect', 'joinpoint', 'interception', 'interceptor',
+    'aspect oriented programming'
+]
 
 setup(
     name='b3j0f.aop',
@@ -72,5 +73,5 @@ setup(
         "Programming Language :: Python :: 3.4"
     ],
     test_suite='b3j0f',
-    keywords=reduce(lambda x, y: '{0} {1}'.format(x, y), keywords)
+    keywords=keywords
 )

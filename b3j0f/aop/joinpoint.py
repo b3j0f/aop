@@ -71,7 +71,7 @@ _INTERCEPTED_CTX = '_intercepted_ctx'
 #: attribute which binds an interception function to its parent joinpoint
 _INTERCEPTION = '_interception'
 
-#: list of attributes to set after wrapping a function with a joinpoint
+#: list of attributes to set/update after wrapping a function with a joinpoint
 WRAPPER_ASSIGNMENTS = ['__doc__', '__module__', '__name__']
 WRAPPER_UPDATES = ['__dict__']
 
