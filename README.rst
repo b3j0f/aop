@@ -1,5 +1,5 @@
-b3j0f.aop: Aspect Oriented Programming for Python
-=================================================
+Description
+-----------
 
 This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
 

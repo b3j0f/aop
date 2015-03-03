@@ -34,7 +34,7 @@ __version__ = "0.7.0"
 
 __all__ = [
     'weave', 'unweave', 'weave_on', 'get_advices',
-    'Advice', 'AdvicesExecutor',
+    'Advice',
     'get_intercepted', 'is_intercepted',
     'Joinpoint', 'JoinpointError'
 ]
