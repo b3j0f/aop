@@ -81,6 +81,11 @@ Features
 
    - speed execution
 
+Limitations
+-----------
+
+- Do not weave advices on readonly instance methods.
+
 Examples
 --------
 
