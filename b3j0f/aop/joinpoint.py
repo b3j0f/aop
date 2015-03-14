@@ -252,7 +252,9 @@ class Joinpoint(object):
         result = "{0}(".format(self_type.__name__)
 
         for slot in self_type.__slots__:
-            result += "{0}:{1},".format(slot, getattr(self, slot))
+            # do not display advices iterator
+            if slot != Joinpoint._ADVICES_ITERATOR:
+                result += "{0}:{1},".format(slot, getattr(self, slot))
         else:
             result = "{0})".format(result[:-2])
 
