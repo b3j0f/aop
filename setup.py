@@ -45,7 +45,7 @@ keywords = [
 
 setup(
     name='b3j0f.aop',
-    version='0.7.2',
+    version='0.7.3',
     install_requires=dependencies,
     packages=find_packages(exclude=['test.*', '*.test.*']),
     author="b3j0f",
