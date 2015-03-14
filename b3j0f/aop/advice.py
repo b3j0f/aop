@@ -61,16 +61,14 @@ _ADVICES = '_advices'  #: target advices attribute name
 
 
 class AdviceError(Exception):
-    """
-    Handle Advice errors
+    """Handle Advice errors
     """
 
     pass
 
 
 class _Joinpoint(Joinpoint):
-    """
-    Manage target execution with Advices.
+    """Manage target execution with Advices.
 
     Advices are callable objects which take in parameter a Joinpoint.
 
@@ -88,8 +86,7 @@ class _Joinpoint(Joinpoint):
 
 
 def _add_advices(target, advices):
-    """
-    Add advices on input target.
+    """Add advices on input target.
 
     :param Callable target: target from where add advices.
     :param advices: advices to weave on input target.
@@ -106,8 +103,7 @@ def _add_advices(target, advices):
 
 
 def _remove_advices(target, advices, ctx):
-    """
-    Remove advices from input target.
+    """Remove advices from input target.
 
     :param advices: advices to remove. If None, remove all advices.
     """
@@ -139,8 +135,7 @@ def _remove_advices(target, advices, ctx):
 
 
 def get_advices(target, ctx=None, local=False):
-    """
-    Get element advices.
+    """Get element advices.
 
     :param target: target from where get advices.
     :param ctx: ctx from where get target.
@@ -218,8 +213,7 @@ def get_advices(target, ctx=None, local=False):
 
 
 def _namematcher(regex):
-    """
-    Checks if a target name matches with an input regular expression
+    """Checks if a target name matches with an input regular expression
     """
 
     matcher = re_compile(regex)
@@ -462,8 +456,7 @@ def unweave(
 
 
 def _unweave(target, advices, pointcut, ctx, depth, depth_predicate):
-    """
-    Unweave deeply advices in target.
+    """Unweave deeply advices in target.
     """
 
     # if weaving has to be done
@@ -486,8 +479,7 @@ def _unweave(target, advices, pointcut, ctx, depth, depth_predicate):
 
 
 def weave_on(advices, pointcut=None, ctx=None, depth=1, ttl=None):
-    """
-    Decorator for weaving advices on a callable target.
+    """Decorator for weaving advices on a callable target.
 
     :param pointcut: condition for weaving advices on joinpointe.
         The condition depends on its type.
@@ -517,8 +509,7 @@ def weave_on(advices, pointcut=None, ctx=None, depth=1, ttl=None):
 
 
 class Advice(object):
-    """
-    Advice class which aims to embed an advice function with disabling proprety
+    """Advice class which aims to embed an advice function with disabling proprety
     """
 
     __slots__ = ('_impl', '_enable', '_uid')
@@ -535,8 +526,7 @@ class Advice(object):
 
     @property
     def enable(self):
-        """
-        Get self enable state. Change state if input enable is a boolean.
+        """Get self enable state. Change state if input enable is a boolean.
 
         TODO: change of method execution instead of saving a state.
         """
@@ -545,15 +535,13 @@ class Advice(object):
 
     @enable.setter
     def enable(self, value):
-        """
-        Change of enable status.
+        """Change of enable status.
         """
 
         self._enable = value
 
     def apply(self, joinpoint):
-        """
-        Apply this advice on input joinpoint.
+        """Apply this advice on input joinpoint.
 
         TODO: improve with internal methods instead of conditional test.
         """
@@ -567,8 +555,7 @@ class Advice(object):
 
     @staticmethod
     def set_enable(target, enable=True, advice_ids=None):
-        """
-        Enable or disable all target Advices designated by input advice_ids.
+        """Enable or disable all target Advices designated by input advice_ids.
 
         If advice_ids is None, apply (dis|en)able state to all advices.
         """
@@ -585,8 +572,7 @@ class Advice(object):
 
     @staticmethod
     def weave(target, advices, pointcut=None, depth=1, public=False):
-        """
-        Weave advices such as Advice objects.
+        """Weave advices such as Advice objects.
         """
 
         advices = (
@@ -601,8 +587,7 @@ class Advice(object):
 
     @staticmethod
     def unweave(target, *advices):
-        """
-        Unweave advices from input target.
+        """Unweave advices from input target.
         """
 
         advices = (
@@ -613,14 +598,12 @@ class Advice(object):
         unweave(target=target, *advices)
 
     def __call__(self, joinpoint):
-        """
-        Shortcut for self apply.
+        """Shortcut for self apply.
         """
         return self.apply(joinpoint)
 
     def __hash__(self):
-        """
-        Return self uid hash.
+        """Return self uid hash.
         """
 
         result = hash(self._uid)
@@ -628,8 +611,7 @@ class Advice(object):
         return result
 
     def __eq__(self, other):
-        """
-        Compare with self uid.
+        """Compare with self uid.
         """
 
         result = isinstance(other, Advice) and other._uid == self._uid

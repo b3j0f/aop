@@ -206,10 +206,9 @@ class Joinpoint(object):
         target=None, args=None, kwargs=None, advices=None, ctx=None,
         exec_ctx=None
     ):
-        """
-        Initialize a new Joinpoint with optional parameters such as a target,
-            its calling arguments (args and kwargs) and a list of advices
-            (callable which take self in parameter).
+        """Initialize a new Joinpoint with optional parameters such as a
+        target, its calling arguments (args and kwargs) and a list of
+            advices (callable which take self in parameter).
 
         If target, args and kwargs are not None, self Joinpoint use them in a
             static context. Otherwise, they will be resolved at proceeding
@@ -260,8 +259,7 @@ class Joinpoint(object):
         return result
 
     def set_target(self, target, ctx=None):
-        """
-        Set target.
+        """Set target.
 
         :param target: new target to use.
         :param target ctx: target ctx if target is an class/instance attribute.
@@ -282,9 +280,8 @@ class Joinpoint(object):
         self, target=None, args=None, kwargs=None, advices=None, exec_ctx=None,
         ctx=None
     ):
-        """
-        Start to proceed this Joinpoint in initializing target, its arguments
-        and advices. Call self.proceed at the end.
+        """ Start to proceed this Joinpoint in initializing target, its
+        arguments and advices. Call self.proceed at the end.
 
         :param callable target: new target to use in proceeding. self.target by
             default.
@@ -329,8 +326,7 @@ class Joinpoint(object):
         return result
 
     def proceed(self):
-        """
-        Proceed this Joinpoint in calling all advices with this joinpoint
+        """Proceed this Joinpoint in calling all advices with this joinpoint
         as the only one parameter, and call at the end the target.
         """
 
@@ -347,8 +343,7 @@ class Joinpoint(object):
             return advice(self)
 
     def apply_pointcut(self, target, function=None, ctx=None):
-        """
-        Apply pointcut on input target and returns final interception.
+        """Apply pointcut on input target and returns final interception.
 
         The poincut respects all meta properties such as:
         - function signature,
@@ -563,8 +558,7 @@ class Joinpoint(object):
         return self._interception
 
     def get_advices(self, target):
-        """
-        Get target advices.
+        """Get target advices.
 
         :param target: target from where getting advices.
         """
@@ -575,8 +569,7 @@ class Joinpoint(object):
 def _apply_interception(
     target, interception_fn, ctx=None, _globals=None
 ):
-    """
-    Apply interception on input target and return the final target.
+    """Apply interception on input target and return the final target.
 
     :param Callable target: target on applying the interception_fn.
     :param function interception_fn: interception function to apply on
@@ -677,8 +670,7 @@ def _apply_interception(
 
 
 def _unapply_interception(target, ctx=None):
-    """
-    Unapply interception on input target in cleaning it.
+    """Unapply interception on input target in cleaning it.
 
     :param routine target: target from where removing an interception
         function. is_joinpoint(target) must be True.
@@ -789,8 +781,7 @@ def _unapply_interception(target, ctx=None):
 
 
 def is_intercepted(target):
-    """
-    True iif input target is intercepted.
+    """True iif input target is intercepted.
 
     :param target: target to check such as an intercepted target.
 
@@ -809,8 +800,7 @@ def is_intercepted(target):
 
 
 def get_intercepted(target):
-    """
-    Get intercepted function and ctx from input target.
+    """Get intercepted function and ctx from input target.
 
     :param target: target from where getting the intercepted function and ctx.
 
@@ -829,8 +819,7 @@ def get_intercepted(target):
 
 
 def _get_function(target):
-    """
-    Get target function.
+    """Get target function.
 
     :param callable target: target from where get function.
 
