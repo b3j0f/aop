@@ -24,13 +24,12 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""
-Aspect Oriented Programming Library for Python
+"""Aspect Oriented Programming Library for Python.
 
 Provides tools to (un)weave and get advices, and check joinpoint status.
 """
 
-__version__ = "0.7.3"
+__version__ = '0.7.4'
 
 __all__ = [
     'weave', 'unweave', 'weave_on', 'get_advices',

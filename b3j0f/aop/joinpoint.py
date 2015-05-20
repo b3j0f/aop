@@ -24,8 +24,7 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""
-Module which aims to manage python joinpoint interception.
+"""Module which aims to manage python joinpoint interception.
 
 A joinpoint is just a callable element.
 
@@ -100,7 +99,7 @@ def find_ctx(elt):
 
 
 def base_ctx(ctx):
-    """Get base ctx
+    """Get base ctx.
 
     :param ctx: initial ctx.
     :return: base ctx.
@@ -149,16 +148,14 @@ def super_method(name, ctx):
 
 
 class JoinpointError(Exception):
-    """
-    Handle Joinpoint errors
+    """Handle Joinpoint errors
     """
 
     pass
 
 
 class Joinpoint(object):
-    """
-    Manage joinpoint execution with Advices.
+    """Manage joinpoint execution with Advices.
 
     Advices are callable objects which take in parameter a Joinpoint.
 

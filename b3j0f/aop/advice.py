@@ -24,8 +24,8 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""
-Provides functions in order to weave/unweave/get advices from callable objects.
+"""Provides functions in order to weave/unweave/get advices from callable
+objects.
 """
 
 from re import compile as re_compile
@@ -509,7 +509,8 @@ def weave_on(advices, pointcut=None, ctx=None, depth=1, ttl=None):
 
 
 class Advice(object):
-    """Advice class which aims to embed an advice function with disabling proprety
+    """Advice class which aims to embed an advice function with disabling
+    property.
     """
 
     __slots__ = ('_impl', '_enable', '_uid')

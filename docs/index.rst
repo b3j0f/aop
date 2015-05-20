@@ -8,6 +8,13 @@ b3j0f.aop: Aspect Oriented Programming for Python
 =================================================
 
 .. toctree::
+   :caption: Table of Contents
+   :maxdepth: 1
+
+   index
+   changelog
+
+.. toctree::
    :hidden:
 
    sources/modules

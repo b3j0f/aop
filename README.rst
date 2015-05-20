@@ -84,7 +84,7 @@ Features
 Limitations
 -----------
 
-- Do not weave advices on readonly instance methods.
+- Do not weave advices on readonly instance methods (where class use __slots__ attribute).
 
 Examples
 --------
@@ -207,7 +207,7 @@ Perspectives
 
 - Cython implementation.
 
-Donating
+Donation
 --------
 
 .. image:: https://cdn.rawgit.com/gratipay/gratipay-badge/2.3.0/dist/gratipay.png
