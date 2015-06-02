@@ -132,17 +132,17 @@ Related to improving criteria points (1. Free and unlimited access, etc.), a sta
 +------------+------------------------------+----------+-----------+-----+-----------+---------------+
 | Library    | Url                          | License  | Execution | Use | Benchmark | Compatibility |
 +============+==============================+==========+===========+=====+===========+===============+
-| b3j0f.aop  | https://github.com/b3j0f/aop | MIT      | +++       | +++ | +++       | +++ (>=2.6)   |
+| b3j0f.aop  | https://github.com/b3j0f/aop | MIT      | 4/5       | 4/5 | 4/5   | 4/5 (>=2.6) |
 +------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| pyaspects  | http://tinyurl.com/n7ccof5   | GPL 2    | +++       | +   | +         | +             |
+| pyaspects  | http://tinyurl.com/n7ccof5   | GPL 2    | 4/5       | 2/5 | 2/5   | 2/5           |
 +------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| aspects    | http://tinyurl.com/obp8t2v   | LGPL 2.1 | +         | +   | +         | +             |
+| aspects    | http://tinyurl.com/obp8t2v   | LGPL 2.1 | 2/5       | 2/5 | 2/5   | 2/5           |
 +------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| aspect     | http://tinyurl.com/lpd87bd   | BSD      | +         | -   | -         | +             |
+| aspect     | http://tinyurl.com/lpd87bd   | BSD      | 2/5       | 1/5 | 1/5   | 1/5           |
 +------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| spring     | http://tinyurl.com/dmkpj3    | Apache   | ++        | +   | ++        | ++            |
+| spring     | http://tinyurl.com/dmkpj3    | Apache   | 4/5       | 2/5 | 3/5   | 2/5           |
 +------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| pytilities | http://tinyurl.com/q49ulr5   | GPL 3    | +         | +   | -         | +             |
+| pytilities | http://tinyurl.com/q49ulr5   | GPL 3    | 1/5       | 1/5 | 1/5   | 1/5           |
 +------------+------------------------------+----------+-----------+-----+-----------+---------------+
 
 pyaspects
@@ -172,7 +172,7 @@ aspect
 ######
 
 strengths
->>>>>>>>>>>>
+>>>>>>>>>
 
 + invert the AOP in decorating advices with joinpoint instead of weaving advices on joinpoint.
 + open-source and no use limitations: BSD.
@@ -186,6 +186,18 @@ weaknesses
 
 spring
 ######
+
+strengths
+>>>>>>>>>
+
+- a very powerful library dedicated to develop strong systems based on component based software engineering.
+- unittests.
+- huge community.
+
+weaknesses
+>>>>>>>>>>
+
+- require to understand a lot of concepts and install an heavy library before doing a simple interception with AOP concerns.
 
 pytilities
 ##########
@@ -205,6 +217,7 @@ weaknesses
 Perspectives
 ------------
 
+- wait feedbacks during 6 months before passing it to a stable version.
 - Cython implementation.
 
 Donation
