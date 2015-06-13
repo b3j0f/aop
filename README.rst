@@ -3,40 +3,36 @@ Description
 
 This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
 
-.. image:: https://pypip.in/license/b3j0f.aop/badge.svg
-   :target: https://pypi.python.org/pypi/b3j0f.aop/
+.. image:: https://img.shields.io/pypi/l/b3j0f.aop.svg
+   :target: https://pypi.python.org/pypi/b3j0f.utils/
    :alt: License
 
-.. image:: https://pypip.in/status/b3j0f.aop/badge.svg
-   :target: https://pypi.python.org/pypi/b3j0f.aop/
+.. image:: https://img.shields.io/pypi/status/b3j0f.aop.svg
+   :target: https://pypi.python.org/pypi/b3j0f.utils/
    :alt: Development Status
 
-.. image:: https://pypip.in/version/b3j0f.aop/badge.svg?text=version
-   :target: https://pypi.python.org/pypi/b3j0f.aop/
+.. image:: https://img.shields.io/pypi/v/b3j0f.aop.svg
+   :target: https://pypi.python.org/pypi/b3j0f.utils/
    :alt: Latest release
 
-.. image:: https://pypip.in/py_versions/b3j0f.aop/badge.svg
-   :target: https://pypi.python.org/pypi/b3j0f.aop/
+.. image:: https://img.shields.io/pypi/pyversions/b3j0f.aop.svg
+   :target: https://pypi.python.org/pypi/b3j0f.utils/
    :alt: Supported Python versions
 
-.. image:: https://pypip.in/implementation/b3j0f.aop/badge.svg
-   :target: https://pypi.python.org/pypi/b3j0f.aop/
+.. image:: https://img.shields.io/pypi/implementation/b3j0f.aop.svg
+   :target: https://pypi.python.org/pypi/b3j0f.utils/
    :alt: Supported Python implementations
 
-.. image:: https://pypip.in/format/b3j0f.aop/badge.svg
-   :target: https://pypi.python.org/pypi/b3j0f.aop/
-   :alt: Download format
-
-.. image:: https://travis-ci.org/b3j0f/aop.svg?branch=master
-   :target: https://travis-ci.org/b3j0f/aop
+.. image:: https://img.shields.io/pypi/wheel/b3j0f.aop.svg
+   :target: https://travis-ci.org/b3j0f/utils
    :alt: Build status
 
-.. image:: https://coveralls.io/repos/b3j0f/aop/badge.png
-   :target: https://coveralls.io/r/b3j0f/aop
+.. image:: https://coveralls.io/repos/b3j0f/utils/badge.png
+   :target: https://coveralls.io/r/b3j0f/utils
    :alt: Code test coverage
 
-.. image:: https://pypip.in/download/b3j0f.aop/badge.svg?period=month
-   :target: https://pypi.python.org/pypi/b3j0f.aop/
+.. image:: https://img.shields.io/pypi/dm/b3j0f.aop.svg
+   :target: https://pypi.python.org/pypi/b3j0f.utils/
    :alt: Downloads
 
 Links
@@ -129,21 +125,21 @@ State of the art
 
 Related to improving criteria points (1. Free and unlimited access, etc.), a state of the art is provided here.
 
-+------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| Library    | Url                          | License  | Execution | Use | Benchmark | Compatibility |
-+============+==============================+==========+===========+=====+===========+===============+
-| b3j0f.aop  | https://github.com/b3j0f/aop | MIT      | 4/5       | 4/5 | 4/5   | 4/5 (>=2.6) |
-+------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| pyaspects  | http://tinyurl.com/n7ccof5   | GPL 2    | 4/5       | 2/5 | 2/5   | 2/5           |
-+------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| aspects    | http://tinyurl.com/obp8t2v   | LGPL 2.1 | 2/5       | 2/5 | 2/5   | 2/5           |
-+------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| aspect     | http://tinyurl.com/lpd87bd   | BSD      | 2/5       | 1/5 | 1/5   | 1/5           |
-+------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| spring     | http://tinyurl.com/dmkpj3    | Apache   | 4/5       | 2/5 | 3/5   | 2/5           |
-+------------+------------------------------+----------+-----------+-----+-----------+---------------+
-| pytilities | http://tinyurl.com/q49ulr5   | GPL 3    | 1/5       | 1/5 | 1/5   | 1/5           |
-+------------+------------------------------+----------+-----------+-----+-----------+---------------+
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| Library    | Url                          | License  | Execution | Use | Benchmark     | Compatibility |
++============+==============================+==========+===========+=====+===============+===============+
+| b3j0f.aop  | https://github.com/b3j0f/aop | MIT      | 4/5       | 4/5 | 4/5           | 4/5 (>=2.6)   |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| pyaspects  | http://tinyurl.com/n7ccof5   | GPL 2    | 4/5       | 2/5 | 2/5           | 2/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| aspects    | http://tinyurl.com/obp8t2v   | LGPL 2.1 | 2/5       | 2/5 | 2/5           | 2/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| aspect     | http://tinyurl.com/lpd87bd   | BSD      | 2/5       | 1/5 | 1/5           | 1/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| spring     | http://tinyurl.com/dmkpj3    | Apache   | 4/5       | 2/5 | 3/5           | 2/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| pytilities | http://tinyurl.com/q49ulr5   | GPL 3    | 1/5       | 1/5 | 1/5           | 1/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
 
 pyaspects
 #########
