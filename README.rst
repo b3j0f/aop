@@ -4,35 +4,35 @@ Description
 This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
 
 .. image:: https://img.shields.io/pypi/l/b3j0f.aop.svg
-   :target: https://pypi.python.org/pypi/b3j0f.utils/
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
    :alt: License
 
 .. image:: https://img.shields.io/pypi/status/b3j0f.aop.svg
-   :target: https://pypi.python.org/pypi/b3j0f.utils/
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
    :alt: Development Status
 
 .. image:: https://img.shields.io/pypi/v/b3j0f.aop.svg
-   :target: https://pypi.python.org/pypi/b3j0f.utils/
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
    :alt: Latest release
 
 .. image:: https://img.shields.io/pypi/pyversions/b3j0f.aop.svg
-   :target: https://pypi.python.org/pypi/b3j0f.utils/
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
    :alt: Supported Python versions
 
 .. image:: https://img.shields.io/pypi/implementation/b3j0f.aop.svg
-   :target: https://pypi.python.org/pypi/b3j0f.utils/
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
    :alt: Supported Python implementations
 
 .. image:: https://img.shields.io/pypi/wheel/b3j0f.aop.svg
-   :target: https://travis-ci.org/b3j0f/utils
+   :target: https://travis-ci.org/b3j0f/aop
    :alt: Build status
 
-.. image:: https://coveralls.io/repos/b3j0f/utils/badge.png
-   :target: https://coveralls.io/r/b3j0f/utils
+.. image:: https://coveralls.io/repos/b3j0f/aop/badge.png
+   :target: https://coveralls.io/r/b3j0f/aop
    :alt: Code test coverage
 
 .. image:: https://img.shields.io/pypi/dm/b3j0f.aop.svg
-   :target: https://pypi.python.org/pypi/b3j0f.utils/
+   :target: https://pypi.python.org/pypi/b3j0f.aop/
    :alt: Downloads
 
 Links
