@@ -25,6 +25,10 @@ This library aims to improve python aspects oriented programming efficiency amon
 
 .. image:: https://img.shields.io/pypi/wheel/b3j0f.aop.svg
    :target: https://travis-ci.org/b3j0f/aop
+   :alt: Download format
+
+.. image:: https://travis-ci.org/b3j0f/aop.svg?branch=master
+   :target: https://travis-ci.org/b3j0f/aop
    :alt: Build status
 
 .. image:: https://coveralls.io/repos/b3j0f/aop/badge.png
@@ -224,5 +228,5 @@ Donation
    :alt: I'm grateful for gifts, but don't have a specific funding goal.
 
 .. _Homepage: https://github.com/b3j0f/aop
-.. _Documentation: http://pythonhosted.org/b3j0f.aop
+.. _Documentation: http://b3j0faop.readthedocs.org/en/develop/
 .. _PyPI: https://pypi.python.org/pypi/b3j0f.aop/
