@@ -39,8 +39,8 @@ This project is an Aspect Oriented Programming library for python with reflectiv
    :target: https://pypi.python.org/pypi/b3j0f.aop/
    :alt: Downloads
 
-.. image:: https://readthedocs.org/projects/b3j0faop/badge/?version=develop
-   :target: https://readthedocs.org/projects/b3j0faop/?badge=develop
+.. image:: https://readthedocs.org/projects/b3j0faop/badge/?version=master
+   :target: https://readthedocs.org/projects/b3j0faop/?badge=master
    :alt: Documentation Status
 
 Links
