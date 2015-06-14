@@ -39,6 +39,10 @@ This library aims to improve python aspects oriented programming efficiency amon
    :target: https://pypi.python.org/pypi/b3j0f.aop/
    :alt: Downloads
 
+.. image:: https://readthedocs.org/projects/b3j0faop/badge/?version=develop
+   :target: https://readthedocs.org/projects/b3j0faop/?badge=develop
+   :alt: Documentation Status
+
 Links
 -----
 
