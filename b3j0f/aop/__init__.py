@@ -29,7 +29,7 @@
 Provides tools to (un)weave and get advices, and check joinpoint status.
 """
 
-__version__ = '0.7.8'
+__version__ = '0.7.8'  #: project version
 
 __all__ = [
     'weave', 'unweave', 'weave_on', 'get_advices',
