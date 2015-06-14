@@ -40,7 +40,7 @@ dependencies = ['b3j0f.utils']
 
 keywords = [
     'aspect', 'joinpoint', 'interception', 'interceptor',
-    'aspect oriented programming'
+    'aspect oriented programming', 'reflect', 'reflectivity'
 ]
 
 setup(

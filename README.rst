@@ -1,7 +1,7 @@
 Description
 -----------
 
-This library aims to improve python aspects oriented programming efficiency among several existing library in respecting reflective properties provided by python.
+This project is an Aspect Oriented Programming library for python with reflective concerns.
 
 .. image:: https://img.shields.io/pypi/l/b3j0f.aop.svg
    :target: https://pypi.python.org/pypi/b3j0f.aop/
