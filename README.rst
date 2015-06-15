@@ -43,6 +43,10 @@ This project is an Aspect Oriented Programming library for python with reflectiv
    :target: https://readthedocs.org/projects/b3j0faop/?badge=master
    :alt: Documentation Status
 
+.. image:: https://landscape.io/github/b3j0f/aop/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/b3j0f/aop/master
+   :alt: Code Health
+
 Links
 -----
 
