@@ -29,14 +29,16 @@
 Provides tools to (un)weave and get advices, and check joinpoint status.
 """
 
-__version__ = '0.7.8'  #: project version
-
 __all__ = [
+    'version',
     'weave', 'unweave', 'weave_on', 'get_advices',
     'Advice',
     'get_intercepted', 'is_intercepted',
     'Joinpoint', 'JoinpointError'
 ]
+
+# import project version
+from setup import version
 
 from .joinpoint import (
     Joinpoint, get_intercepted, is_intercepted, JoinpointError
