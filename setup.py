@@ -43,12 +43,9 @@ keywords = [
     'aspect oriented programming', 'reflect', 'reflectivity'
 ]
 
-version_info = (0, 7, 8, 'beta', 0)
-version = '{0}.{1}.{2}'.format(*version_info)
-
 setup(
     name='b3j0f.aop',
-    version=version,
+    version='0.7.8',
     install_requires=dependencies,
     packages=find_packages(exclude=['test.*', '*.test.*']),
     author="b3j0f",
