@@ -30,19 +30,10 @@ Provides tools to (un)weave and get advices, and check joinpoint status.
 """
 
 __all__ = [
-    '__version__',
-    'weave', 'unweave', 'weave_on', 'get_advices',
-    'Advice',
-    'get_intercepted', 'is_intercepted',
-    'Joinpoint', 'JoinpointError'
+    '__version_info__', '__version__'
 ]
 
+#: project version info
+__version_info__ = 0, 7, 8, "beta", 0
 #: project version
-__version__ = '0.7.8'
-
-from .joinpoint import (
-    Joinpoint, get_intercepted, is_intercepted, JoinpointError
-)
-from .advice import (
-    weave, unweave, weave_on, Advice, get_advices
-)
+__version__ = ".".join(str(v) for v in __version_info__[:3])
