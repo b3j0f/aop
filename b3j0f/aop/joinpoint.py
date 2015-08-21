@@ -151,8 +151,6 @@ class JoinpointError(Exception):
     """Handle Joinpoint errors
     """
 
-    pass
-
 
 class Joinpoint(object):
     """Manage joinpoint execution with Advices.
@@ -199,9 +197,9 @@ class Joinpoint(object):
     )
 
     def __init__(
-        self,
-        target=None, args=None, kwargs=None, advices=None, ctx=None,
-        exec_ctx=None
+            self,
+            target=None, args=None, kwargs=None, advices=None, ctx=None,
+            exec_ctx=None
     ):
         """Initialize a new Joinpoint with optional parameters such as a
         target, its calling arguments (args and kwargs) and a list of
@@ -276,8 +274,8 @@ class Joinpoint(object):
                 self.apply_pointcut(target, ctx=ctx)
 
     def start(
-        self, target=None, args=None, kwargs=None, advices=None, exec_ctx=None,
-        ctx=None
+            self, target=None, args=None, kwargs=None, advices=None,
+            exec_ctx=None, ctx=None
     ):
         """ Start to proceed this Joinpoint in initializing target, its
         arguments and advices. Call self.proceed at the end.
@@ -335,11 +333,13 @@ class Joinpoint(object):
 
         except StopIteration:  # if no advice can be applied
             # call target
-            return self.target(*self.args, **self.kwargs)
+            result = self.target(*self.args, **self.kwargs)
 
         else:
             # if has next, apply advice on self
-            return advice(self)
+            result = advice(self)
+
+        return result
 
     def apply_pointcut(self, target, function=None, ctx=None):
         """Apply pointcut on input target and returns final interception.
@@ -384,8 +384,11 @@ class Joinpoint(object):
                     updated.append(wrapper_update)
 
             @wraps(function, assigned=assigned, updated=updated)
-            def function(*args, **kwargs):
-                pass
+            def wrapper(*args, **kwargs):
+                """Default wrapper.
+                """
+
+            function = wrapper
 
             # get params from target wrapper
             args, varargs, kwargs, _ = getargspec(function)
@@ -566,7 +569,7 @@ class Joinpoint(object):
 
 
 def _apply_interception(
-    target, interception_fn, ctx=None, _globals=None
+        target, interception_fn, ctx=None, _globals=None
 ):
     """Apply interception on input target and return the final target.
 
@@ -603,7 +606,7 @@ def _apply_interception(
 
         if module is not None:
             # update all references by value
-            for name, member in getmembers(
+            for name, _ in getmembers(
                     module, lambda member: member is target):
                 setattr(module, name, interception_fn)
                 found = True
