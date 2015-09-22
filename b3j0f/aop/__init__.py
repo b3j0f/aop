@@ -30,10 +30,15 @@ Provides tools to (un)weave and get advices, and check joinpoint status.
 """
 
 __all__ = [
-    '__version_info__', '__version__'
+    '__version_info__', '__version__',
+    'weave', 'unweave', 'get_advices', 'weave_on',
+    'Joinpoint', 'JoinpointError'
 ]
 
 #: project version info
-__version_info__ = 0, 7, 8, "beta", 0
+__version_info__ = 0, 7, 9, "beta", 0
 #: project version
 __version__ = ".".join(str(v) for v in __version_info__[:3])
+
+from b3j0f.aop.advice import weave, unweave, get_advices, weave_on
+from b3j0f.aop.joinpoint import Joinpoint, JoinpointError

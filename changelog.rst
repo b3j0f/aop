@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.7.9 (22/09/2015)
+------------------
+
+- add reference to advice and joinpoint members in the main package.
+
 0.7.8 (14/06/2015)
 ------------------
 
