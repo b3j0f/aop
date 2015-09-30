@@ -29,30 +29,47 @@ from setuptools import setup, find_packages
 
 from os.path import abspath, dirname, join
 
-# get setup directory abspath
-_path = dirname(abspath(__file__))
+from re import compile as re_compile, S as re_S
 
-# get long description
-with open(join(_path, 'README.rst')) as f:
-    desc = f.read()
+NAME = 'b3j0f.aop'  # library name
 
-dependencies = ['b3j0f.utils']
+_namepath = NAME.replace('.', '/')
 
-keywords = [
+_base_path = dirname(abspath(__file__))
+
+# get long description from setup directory abspath
+with open(join(_base_path, 'README.rst')) as f:
+    DESC = f.read()
+
+# Get the version - do not use normal import because it does break coverage
+# thanks to the python jira project
+# (https://github.com/pycontribs/jira/blob/master/setup.py)
+with open(join(_base_path, _namepath, 'version.py')) as f:
+    stream = f.read()
+    regex = r".*__version__ = '(.*?)'"
+    VERSION = re_compile(regex, re_S).match(stream).group(1)
+
+DEPENDENCIES = ['b3j0f.utils']
+
+KEYWORDS = [
     'aspect', 'joinpoint', 'interception', 'interceptor',
     'aspect oriented programming', 'reflect', 'reflectivity'
 ]
 
+DESCRIPTION = 'Python Aspect Oriented Programming'
+
+URL = 'https://github.com/{0}'.format(_namepath)
+
 setup(
-    name='b3j0f.aop',
-    version='0.7.9',
-    install_requires=dependencies,
+    name=NAME,
+    version=VERSION,
+    install_requires=DEPENDENCIES,
     packages=find_packages(exclude=['test.*', '*.test.*']),
     author="b3j0f",
     author_email="jlabejof@yahoo.fr",
-    description="Python Aspect Oriented Programming",
-    long_description=desc,
-    url='https://github.com/b3j0f/aop/',
+    description=DESCRIPTION,
+    long_description=DESC,
+    url=URL,
     license='MIT License',
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -74,5 +91,5 @@ setup(
         "Programming Language :: Python :: 3.4"
     ],
     test_suite='b3j0f',
-    keywords=keywords
+    keywords=KEYWORDS
 )

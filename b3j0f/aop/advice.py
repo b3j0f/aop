@@ -41,10 +41,11 @@ try:
 except ImportError:
     from dummy_threading import Timer
 
-from b3j0f.aop.joinpoint import (
+from .joinpoint import (
     _unapply_interception, is_intercepted, _get_function, Joinpoint, find_ctx,
     super_method, get_intercepted, base_ctx
 )
+
 from b3j0f.utils.version import basestring
 
 __all__ = [

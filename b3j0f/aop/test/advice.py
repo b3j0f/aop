@@ -27,9 +27,10 @@
 
 from unittest import main
 
-from b3j0f.utils.version import PY2
+from b3j0f.utils.version import PY2, range
 from b3j0f.utils.ut import UTCase
-from b3j0f.aop.advice import Advice, weave, unweave, weave_on
+
+from ..advice import Advice, weave, unweave, weave_on
 
 from time import sleep
 

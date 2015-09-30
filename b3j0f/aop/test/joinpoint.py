@@ -28,13 +28,14 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
-from b3j0f.aop.joinpoint import (
+from b3j0f.utils.version import PY3, PY2
+
+from ..joinpoint import (
     Joinpoint,
     is_intercepted, get_intercepted,
     _apply_interception, _unapply_interception,
     _get_function, find_ctx, super_method
 )
-from b3j0f.utils.version import PY3, PY2
 
 from types import MethodType, FunctionType
 

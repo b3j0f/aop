@@ -24,17 +24,13 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Aspect Oriented Programming Library for Python.
+__all__ = ['__version__']
 
-Provides tools to (un)weave and get advices, and check joinpoint status.
-"""
+# Store the version here so:
+# 1) we don't load dependencies by storing it in __init__.py
+# 2) we can import it in setup.py for the same reason
+# 3) we can import it into the utils module
+# thanks to https://github.com/pycontribs/jira/blob/master/jira/version.py
 
-__all__ = [
-    '__version__',  # version
-    'weave', 'unweave', 'get_advices', 'weave_on',
-    'Joinpoint', 'JoinpointError'
-]
-
-from .version import __version__
-from .advice import weave, unweave, get_advices, weave_on
-from .joinpoint import Joinpoint, JoinpointError
+#: project version
+__version__ = '0.7.9'
