@@ -32,6 +32,8 @@ functions allow to weave an interception function on any python callable
 object.
 """
 
+from __future__ import absolute_import
+
 from inspect import (
     isbuiltin, ismethod, isclass, isfunction, getmodule, getmembers, getfile,
     getargspec, isroutine, getmro
@@ -39,10 +41,7 @@ from inspect import (
 
 from opcode import opmap
 
-try:
-    import __builtin__
-except ImportError:
-    import builtins as __builtin__
+import builtins
 
 from types import MethodType, FunctionType
 
@@ -50,7 +49,7 @@ from functools import wraps
 
 from time import time
 
-from b3j0f.utils.version import PY3, PY2
+from six import PY3, PY2
 
 __all__ = [
     'Joinpoint', 'JoinpointError',
@@ -599,7 +598,7 @@ def _apply_interception(
         ctx = find_ctx(elt=target)
 
     # if target is a builtin
-    if isbuiltin(target) or getmodule(target) is __builtin__:
+    if isbuiltin(target) or getmodule(target) is builtins:
         # update builtin function reference in module with wrapper
         module = getmodule(target)
         found = False  # check for found function

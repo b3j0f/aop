@@ -1,11 +1,11 @@
 Changelog
 =========
 
-0.7.10 (22/09/2015)
+0.8.0 (22/09/2015)
 -------------------
 
-- add dependency to six.
-- add support for python2.5.
+- add dependency to six and future.
+- add support for python3.5.
 
 0.7.9 (22/09/2015)
 ------------------

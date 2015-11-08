@@ -25,6 +25,8 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""b3j0f.aop building script."""
+
 from setuptools import setup, find_packages
 
 from os.path import abspath, dirname, join
@@ -46,10 +48,10 @@ with open(join(_base_path, 'README.rst')) as f:
 # (https://github.com/pycontribs/jira/blob/master/setup.py)
 with open(join(_base_path, _namepath, 'version.py')) as f:
     stream = f.read()
-    regex = r".*__version__ = '(.*?)'"
+    regex = r'.*__version__ = \'(.*?)\''
     VERSION = re_compile(regex, re_S).match(stream).group(1)
 
-DEPENDENCIES = ['b3j0f.utils', 'six']
+DEPENDENCIES = ['b3j0f.utils', 'six', 'future']
 
 KEYWORDS = [
     'aspect', 'joinpoint', 'interception', 'interceptor',
@@ -65,30 +67,31 @@ setup(
     version=VERSION,
     install_requires=DEPENDENCIES,
     packages=find_packages(exclude=['test.*', '*.test.*']),
-    author="b3j0f",
-    author_email="jlabejof@yahoo.fr",
+    author='b3j0f',
+    author_email='jlabejof@yahoo.fr',
     description=DESCRIPTION,
     long_description=DESC,
     url=URL,
     license='MIT License',
     classifiers=[
-        "Development Status :: 4 - Beta",
-        "License :: OSI Approved :: MIT License",
-        "Natural Language :: French",
-        "Operating System :: OS Independent",
-        "Topic :: Utilities",
-        "Topic :: Software Development",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Science/Research",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 2.6",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.0",
-        "Programming Language :: Python :: 3.1",
-        "Programming Language :: Python :: 3.2",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4"
+        'Development Status :: 4 - Beta',
+        'License :: OSI Approved :: MIT License',
+        'Natural Language :: French',
+        'Operating System :: OS Independent',
+        'Topic :: Utilities',
+        'Topic :: Software Development',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.0',
+        'Programming Language :: Python :: 3.1',
+        'Programming Language :: Python :: 3.2',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5'
     ],
     test_suite='b3j0f',
     keywords=KEYWORDS
