@@ -27,7 +27,7 @@
 
 from unittest import main
 
-from b3j0f.utils.version import PY2, range
+from six import PY2
 from b3j0f.utils.ut import UTCase
 
 from ..advice import Advice, weave, unweave, weave_on

@@ -49,7 +49,7 @@ with open(join(_base_path, _namepath, 'version.py')) as f:
     regex = r".*__version__ = '(.*?)'"
     VERSION = re_compile(regex, re_S).match(stream).group(1)
 
-DEPENDENCIES = ['b3j0f.utils']
+DEPENDENCIES = ['b3j0f.utils', 'six']
 
 KEYWORDS = [
     'aspect', 'joinpoint', 'interception', 'interceptor',

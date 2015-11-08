@@ -25,8 +25,7 @@
 # --------------------------------------------------------------------
 
 """Provides functions in order to weave/unweave/get advices from callable
-objects.
-"""
+objects."""
 
 from re import compile as re_compile
 
@@ -46,7 +45,7 @@ from .joinpoint import (
     super_method, get_intercepted, base_ctx
 )
 
-from b3j0f.utils.version import basestring
+from six import string_types, callable
 
 __all__ = [
     'AdviceError', 'get_advices', 'weave', 'unweave', 'weave_on', 'Advice'
@@ -62,10 +61,7 @@ _ADVICES = '_advices'  #: target advices attribute name
 
 
 class AdviceError(Exception):
-    """Handle Advice errors
-    """
-
-    pass
+    """Handle Advice errors."""
 
 
 class _Joinpoint(Joinpoint):
@@ -214,8 +210,7 @@ def get_advices(target, ctx=None, local=False):
 
 
 def _namematcher(regex):
-    """Checks if a target name matches with an input regular expression
-    """
+    """Checks if a target name matches with an input regular expression."""
 
     matcher = re_compile(regex)
 
@@ -232,8 +227,10 @@ def _publiccallable(target):
     :return: True iif target is callable and name does not start with '_'
     """
 
-    result = callable(target) \
+    result = (
+        callable(target)
         and not getattr(target, '__name__', '').startswith('_')
+    )
 
     return result
 
@@ -282,7 +279,7 @@ def weave(
         if pointcut is None or callable(pointcut):
             pass
         # in case of str, use a name matcher
-        elif isinstance(pointcut, basestring):
+        elif isinstance(pointcut, string_types):
             pointcut = _namematcher(pointcut)
         else:
             error_msg = "Wrong pointcut to check weaving on {0}."
@@ -321,8 +318,8 @@ def weave(
 
 
 def _weave(
-    target, advices, pointcut, ctx, depth, depth_predicate, intercepted,
-    pointcut_application
+        target, advices, pointcut, ctx, depth, depth_predicate, intercepted,
+        pointcut_application
 ):
     """Weave deeply advices in target.
 
@@ -388,7 +385,7 @@ def _weave(
         # get the right ctx
         if ctx is None:
             ctx = target
-        for name, member in getmembers(ctx, depth_predicate):
+        for _, member in getmembers(ctx, depth_predicate):
             _weave(
                 target=member, advices=advices, pointcut=pointcut,
                 depth_predicate=depth_predicate, intercepted=intercepted,
@@ -433,7 +430,7 @@ def unweave(
         pass
 
     # in case of str, use a name matcher
-    elif isinstance(pointcut, basestring):
+    elif isinstance(pointcut, string_types):
         pointcut = _namematcher(pointcut)
 
     else:
@@ -457,8 +454,7 @@ def unweave(
 
 
 def _unweave(target, advices, pointcut, ctx, depth, depth_predicate):
-    """Unweave deeply advices in target.
-    """
+    """Unweave deeply advices in target."""
 
     # if weaving has to be done
     if pointcut is None or pointcut(target):
@@ -472,7 +468,7 @@ def _unweave(target, advices, pointcut, ctx, depth, depth_predicate):
         _base_ctx = None
         if ctx is not None:
             _base_ctx = base_ctx(ctx)
-        for name, member in getmembers(target, depth_predicate):
+        for _, member in getmembers(target, depth_predicate):
             _unweave(
                 target=member, advices=advices, pointcut=pointcut,
                 depth=depth - 1, depth_predicate=depth_predicate, ctx=_base_ctx
@@ -499,6 +495,7 @@ def weave_on(advices, pointcut=None, ctx=None, depth=1, ttl=None):
     """
 
     def __weave(target):
+        """Internal weave function."""
         weave(
             target=target, advices=advices, pointcut=pointcut,
             ctx=ctx, depth=depth, ttl=ttl
@@ -524,6 +521,8 @@ class Advice(object):
 
     @property
     def uid(self):
+        """Get advice uid."""
+
         return self._uid
 
     @property
@@ -537,8 +536,7 @@ class Advice(object):
 
     @enable.setter
     def enable(self, value):
-        """Change of enable status.
-        """
+        """Change of enable status."""
 
         self._enable = value
 
@@ -550,6 +548,7 @@ class Advice(object):
 
         if self._enable:
             result = self._impl(joinpoint)
+
         else:
             result = joinpoint.proceed()
 
@@ -574,8 +573,7 @@ class Advice(object):
 
     @staticmethod
     def weave(target, advices, pointcut=None, depth=1, public=False):
-        """Weave advices such as Advice objects.
-        """
+        """Weave advices such as Advice objects."""
 
         advices = (
             advice if isinstance(advice, Advice) else Advice(advice)
@@ -589,8 +587,7 @@ class Advice(object):
 
     @staticmethod
     def unweave(target, *advices):
-        """Unweave advices from input target.
-        """
+        """Unweave advices from input target."""
 
         advices = (
             advice if isinstance(advice, Advice) else Advice(advice)
@@ -600,22 +597,20 @@ class Advice(object):
         unweave(target=target, *advices)
 
     def __call__(self, joinpoint):
-        """Shortcut for self apply.
-        """
+        """Shortcut for self apply."""
+
         return self.apply(joinpoint)
 
     def __hash__(self):
-        """Return self uid hash.
-        """
+        """Return self uid hash."""
 
         result = hash(self._uid)
 
         return result
 
     def __eq__(self, other):
-        """Compare with self uid.
-        """
+        """Compare with self uid."""
 
-        result = isinstance(other, Advice) and other._uid == self._uid
+        result = isinstance(other, Advice) and other.uid == self._uid
 
         return result
