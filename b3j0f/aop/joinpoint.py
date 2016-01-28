@@ -41,7 +41,7 @@ from inspect import (
 
 from opcode import opmap
 
-import builtins
+from six.moves import builtins
 
 from types import MethodType, FunctionType
 

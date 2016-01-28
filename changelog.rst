@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.8.1 (2016/01/28)
+------------------
+
+- fix wrong import of builtins in python2.7.
+- add tox file for a better multi-test environment.
+
 0.8.0 (2015/11/09)
 ------------------
 
