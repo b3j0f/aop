@@ -452,7 +452,11 @@ class GetFunctionTest(UTCase):
 
         func = _get_function(A)
 
-        self.assertEqual(func, A.__init__)
+        to_compare = A.__init__
+        if hasattr(to_compare, '__func__'):
+            to_compare = to_compare.__func__
+
+        self.assertEqual(func, to_compare)
 
     def test_namespace(self):
 

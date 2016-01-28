@@ -384,8 +384,7 @@ class Joinpoint(object):
 
             @wraps(function, assigned=assigned, updated=updated)
             def wrapper(*args, **kwargs):
-                """Default wrapper.
-                """
+                """Default wrapper."""
 
             function = wrapper
 
@@ -518,7 +517,7 @@ class Joinpoint(object):
             newco.co_flags, codestr, tuple(newconsts), newco.co_names,
             newco.co_varnames, newco.co_filename, newco.co_name,
             newco.co_firstlineno, newco.co_lnotab,
-            function.__code__.co_freevars,
+            getattr(function.__code__, 'co_freevars', ()),
             newco.co_cellvars
         ]
         if PY3:
@@ -529,11 +528,16 @@ class Joinpoint(object):
         # instanciate a new function
         if function is None or isbuiltin(function):
             interception_fn = FunctionType(codeobj, {})
+
         else:
             interception_fn = type(function)(
-                codeobj, function.__globals__, function.__name__,
-                function.__defaults__, function.__closure__
+                codeobj,
+                {} if function.__globals__ is None else function.__globals__,
+                function.__name__,
+                function.__defaults__,
+                function.__closure__
             )
+
         # set wrapping assignments
         for wrapper_assignment in WRAPPER_ASSIGNMENTS:
             try:
