@@ -31,7 +31,7 @@ from b3j0f.utils.ut import UTCase
 
 from six import PY3, PY2
 
-from ..joinpoint import (
+from ..core import (
     Joinpoint,
     is_intercepted, get_intercepted,
     _apply_interception, _unapply_interception,

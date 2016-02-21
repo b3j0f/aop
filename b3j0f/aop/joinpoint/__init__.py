@@ -24,13 +24,6 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Aspect Oriented Programming Library for Python.
+"""Joinpoint package."""
 
-Provides tools to (un)weave and get advices, and check joinpoint status.
-"""
-
-from .version import __version__
-from .advice import weave, unweave, get_advices, weave_on
-from .joinpoint import (
-    Joinpoint, JoinpointError, is_intercepted, get_intercepted
-)
+from .core import Joinpoint, JoinpointError, is_intercepted, get_intercepted

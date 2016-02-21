@@ -24,6 +24,8 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""AOP version module."""
+
 __all__ = ['__version__']
 
 # Store the version here so:
@@ -33,4 +35,4 @@ __all__ = ['__version__']
 # thanks to https://github.com/pycontribs/jira/blob/master/jira/version.py
 
 #: project version
-__version__ = '0.8.2'
+__version__ = '0.8.3'

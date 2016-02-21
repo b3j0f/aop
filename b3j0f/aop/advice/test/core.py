@@ -31,24 +31,9 @@ from six import PY2
 
 from b3j0f.utils.ut import UTCase
 
-from ..advice import Advice, weave, unweave, weave_on
+from ..core import weave, unweave, weave_on
 
 from time import sleep
-
-
-class AdviceTest(UTCase):
-
-    def setUp(self):
-
-        self.advice = Advice(impl=lambda x: 2)
-
-    def test_apply(self):
-
-        self.assertEqual(self.advice.apply(None), 2)
-
-    def test_enable(self):
-
-        self.assertEqual(self.advice.enable, True)
 
 
 class WeaveTest(UTCase):

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
@@ -24,13 +25,27 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Aspect Oriented Programming Library for Python.
+from unittest import main
 
-Provides tools to (un)weave and get advices, and check joinpoint status.
-"""
+from b3j0f.utils.ut import UTCase
 
-from .version import __version__
-from .advice import weave, unweave, get_advices, weave_on
-from .joinpoint import (
-    Joinpoint, JoinpointError, is_intercepted, get_intercepted
-)
+from ..utils import Advice
+
+
+class AdviceTest(UTCase):
+
+    def setUp(self):
+
+        self.advice = Advice(impl=lambda x: 2)
+
+    def test_apply(self):
+
+        self.assertEqual(self.advice.apply(None), 2)
+
+    def test_enable(self):
+
+        self.assertTrue(self.advice.enable)
+
+
+if __name__ == '__main__':
+    main()

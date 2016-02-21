@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.8.3 (2016/02/22)
+------------------
+
+- remove depency to future.
+- update file hierarchy in order to leave the class Advice from the advice.core module.
+- add requirements.txt file.
+
 0.8.2 (2016/01/28)
 ------------------
 

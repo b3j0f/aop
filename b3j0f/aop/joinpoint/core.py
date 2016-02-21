@@ -41,15 +41,12 @@ from inspect import (
 
 from opcode import opmap
 
+from six import PY3, PY2, wraps
 from six.moves import builtins
 
 from types import MethodType, FunctionType
 
-from functools import wraps
-
 from time import time
-
-from six import PY3, PY2
 
 __all__ = [
     'Joinpoint', 'JoinpointError',
@@ -101,8 +98,7 @@ def base_ctx(ctx):
     """Get base ctx.
 
     :param ctx: initial ctx.
-    :return: base ctx.
-    """
+    :return: base ctx."""
 
     result = None
 
@@ -124,8 +120,7 @@ def super_method(name, ctx):
     :param name: method name to find in super ctx.
     :param ctx: initial method ctx.
     :return: method in super ctx and super ctx.
-    :rtype: tuple
-    """
+    :rtype: tuple"""
 
     result = None, None
 
@@ -147,8 +142,7 @@ def super_method(name, ctx):
 
 
 class JoinpointError(Exception):
-    """Handle Joinpoint errors
-    """
+    """Handle Joinpoint errors."""
 
 
 class Joinpoint(object):

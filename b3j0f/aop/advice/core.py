@@ -29,8 +29,6 @@ objects."""
 
 from re import compile as re_compile
 
-from uuid import uuid4 as uuid
-
 from inspect import getmembers, isroutine, isclass
 
 from opcode import opmap
@@ -40,16 +38,14 @@ try:
 except ImportError:
     from dummy_threading import Timer
 
-from .joinpoint import (
+from ..joinpoint.core import (
     _unapply_interception, is_intercepted, _get_function, Joinpoint, find_ctx,
     super_method, get_intercepted, base_ctx
 )
 
 from six import string_types, callable
 
-__all__ = [
-    'AdviceError', 'get_advices', 'weave', 'unweave', 'weave_on', 'Advice'
-]
+__all__ = ['AdviceError', 'get_advices', 'weave', 'unweave', 'weave_on']
 
 # consts for interception loading
 LOAD_GLOBAL = opmap['LOAD_GLOBAL']
@@ -236,8 +232,8 @@ def _publiccallable(target):
 
 
 def weave(
-    target, advices, pointcut=None, ctx=None, depth=1, public=False,
-    pointcut_application=None, ttl=None
+        target, advices, pointcut=None, ctx=None, depth=1, public=False,
+        pointcut_application=None, ttl=None
 ):
     """Weave advices on target with input pointcut.
 
@@ -504,113 +500,3 @@ def weave_on(advices, pointcut=None, ctx=None, depth=1, ttl=None):
         return target
 
     return __weave
-
-
-class Advice(object):
-    """Advice class which aims to embed an advice function with disabling
-    property.
-    """
-
-    __slots__ = ('_impl', '_enable', '_uid')
-
-    def __init__(self, impl, uid=None, enable=True):
-
-        self._impl = impl
-        self._enable = enable
-        self._uid = uuid() if uid is None else uid
-
-    @property
-    def uid(self):
-        """Get advice uid."""
-
-        return self._uid
-
-    @property
-    def enable(self):
-        """Get self enable state. Change state if input enable is a boolean.
-
-        TODO: change of method execution instead of saving a state.
-        """
-
-        return self._enable
-
-    @enable.setter
-    def enable(self, value):
-        """Change of enable status."""
-
-        self._enable = value
-
-    def apply(self, joinpoint):
-        """Apply this advice on input joinpoint.
-
-        TODO: improve with internal methods instead of conditional test.
-        """
-
-        if self._enable:
-            result = self._impl(joinpoint)
-
-        else:
-            result = joinpoint.proceed()
-
-        return result
-
-    @staticmethod
-    def set_enable(target, enable=True, advice_ids=None):
-        """Enable or disable all target Advices designated by input advice_ids.
-
-        If advice_ids is None, apply (dis|en)able state to all advices.
-        """
-
-        advices = get_advices(target)
-
-        for advice in advices:
-            try:
-                if isinstance(Advice) \
-                        and (advice_ids is None or advice.uuid in advice_ids):
-                    advice.enable = enable
-            except ValueError:
-                pass
-
-    @staticmethod
-    def weave(target, advices, pointcut=None, depth=1, public=False):
-        """Weave advices such as Advice objects."""
-
-        advices = (
-            advice if isinstance(advice, Advice) else Advice(advice)
-            for advice in advices
-        )
-
-        weave(
-            target=target, advices=advices, pointcut=pointcut,
-            depth=depth, public=public
-        )
-
-    @staticmethod
-    def unweave(target, *advices):
-        """Unweave advices from input target."""
-
-        advices = (
-            advice if isinstance(advice, Advice) else Advice(advice)
-            for advice in advices
-        )
-
-        unweave(target=target, *advices)
-
-    def __call__(self, joinpoint):
-        """Shortcut for self apply."""
-
-        return self.apply(joinpoint)
-
-    def __hash__(self):
-        """Return self uid hash."""
-
-        result = hash(self._uid)
-
-        return result
-
-    def __eq__(self, other):
-        """Compare with self uid."""
-
-        result = isinstance(other, Advice) and other.uid == self._uid
-
-        return result

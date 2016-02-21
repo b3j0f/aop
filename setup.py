@@ -37,21 +37,23 @@ NAME = 'b3j0f.aop'  # library name
 
 _namepath = NAME.replace('.', '/')
 
-_base_path = dirname(abspath(__file__))
+BASEPATH = dirname(abspath(__file__))
 
 # get long description from setup directory abspath
-with open(join(_base_path, 'README.rst')) as f:
+with open(join(BASEPATH, 'README.rst')) as f:
     DESC = f.read()
 
 # Get the version - do not use normal import because it does break coverage
 # thanks to the python jira project
 # (https://github.com/pycontribs/jira/blob/master/setup.py)
-with open(join(_base_path, _namepath, 'version.py')) as f:
+with open(join(BASEPATH, _namepath, 'version.py')) as f:
     stream = f.read()
     regex = r'.*__version__ = \'(.*?)\''
     VERSION = re_compile(regex, re_S).match(stream).group(1)
 
-DEPENDENCIES = ['b3j0f.utils', 'six', 'future']
+DEPENDENCIES = []
+with open(join(BASEPATH, 'requirements.txt')) as f:
+    DEPENDENCIES = list(line for line in f.readlines())
 
 KEYWORDS = [
     'aspect', 'joinpoint', 'interception', 'interceptor',
