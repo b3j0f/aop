@@ -26,4 +26,6 @@
 
 """Joinpoint package."""
 
+__all__ = ['Joinpoint', 'JoinpointError', 'is_intercepted', 'get_intercepted']
+
 from .core import Joinpoint, JoinpointError, is_intercepted, get_intercepted

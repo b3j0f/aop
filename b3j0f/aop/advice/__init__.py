@@ -26,4 +26,6 @@
 
 """Advice package."""
 
+__all__ = ['weave', 'unweave', 'get_advices', 'weave_on']
+
 from .core import weave, unweave, get_advices, weave_on
