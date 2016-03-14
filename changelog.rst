@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.8.4 (2016/03/14)
+------------------
+
+- fix sharing of exec_ctx between multi joinpoint execution instead of one per execution.
+
 0.8.3 (2016/02/22)
 ------------------
 

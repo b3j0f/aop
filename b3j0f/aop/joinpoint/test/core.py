@@ -523,6 +523,44 @@ class GetFunctionTest(UTCase):
         self.assertEqual(func, a.__call__.__func__)
 
 
+class ExecCtxTest(UTCase):
+    """Test the execution context."""
+
+    def _cmp(self, val, exec_ctx=None, start_exec_ctx=None):
+
+        def advice(jp):
+
+            jp.exec_ctx['test'] = jp.exec_ctx.setdefault('test', 0) + 1
+
+        joinpoint = Joinpoint(
+            advices=[advice], target=lambda: None, exec_ctx=exec_ctx
+        )
+
+        joinpoint.start(exec_ctx=start_exec_ctx)
+
+        self.assertEqual(joinpoint.exec_ctx['test'], val)
+
+        joinpoint.start(exec_ctx=start_exec_ctx)
+
+        self.assertEqual(joinpoint.exec_ctx['test'], val)
+
+        return joinpoint
+
+    def test_no_exc_ctx(self):
+
+        self._cmp(1)
+
+    def test_exec_ctx(self):
+
+        self._cmp(2, {'test': 1})
+
+    def test_one_per_execution(self):
+
+        joinpoint = self._cmp(2, {'test': 0, 'final': True}, {'test': 1})
+
+        self.assertTrue(joinpoint.exec_ctx['final'])
+
+
 class ApplyInterceptionTest(UTCase):
 
     def test_function(self):

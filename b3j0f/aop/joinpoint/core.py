@@ -163,6 +163,7 @@ class Joinpoint(object):
     __INTERCEPTION__ = 'interception'
 
     #: context execution attribute name
+    _EXEC_CTX = '_exec_ctx'
     EXEC_CTX = 'exec_ctx'
 
     #: interception attribute name
@@ -185,7 +186,7 @@ class Joinpoint(object):
     _ADVICES = '_advices'
 
     __slots__ = (
-        EXEC_CTX, ARGS, KWARGS, TARGET, CTX,  # public attributes
+        _EXEC_CTX, EXEC_CTX, ARGS, KWARGS, TARGET, CTX,  # public attributes
         _ADVICES_ITERATOR, _ADVICES, _INTERCEPTION  # private attributes
     )
 
@@ -229,7 +230,8 @@ class Joinpoint(object):
         self._advices = advices
 
         # set context
-        self.exec_ctx = {} if exec_ctx is None else exec_ctx
+        self._exec_ctx = {} if exec_ctx is None else exec_ctx
+        self.exec_ctx = None
 
         # set target
         self.set_target(target=target, ctx=ctx)
@@ -243,8 +245,8 @@ class Joinpoint(object):
             # do not display advices iterator
             if slot != Joinpoint._ADVICES_ITERATOR:
                 result += "{0}:{1},".format(slot, getattr(self, slot))
-        else:
-            result = "{0})".format(result[:-2])
+
+        result = "{0})".format(result[:-2])
 
         return result
 
@@ -309,7 +311,10 @@ class Joinpoint(object):
         self._advices_iterator = iter(advices)
 
         # initialize execution context
-        self.exec_ctx = self.exec_ctx if exec_ctx is None else exec_ctx
+        self.exec_ctx = self._exec_ctx.copy()
+
+        if exec_ctx is not None:
+            self.exec_ctx.update(exec_ctx)
 
         result = self.proceed()
 

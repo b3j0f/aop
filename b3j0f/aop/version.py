@@ -35,4 +35,4 @@ __all__ = ['__version__']
 # thanks to https://github.com/pycontribs/jira/blob/master/jira/version.py
 
 #: project version
-__version__ = '0.8.3'
+__version__ = '0.8.4'
