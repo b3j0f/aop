@@ -130,6 +130,23 @@ And with an annotation ?
 True
 >>> unweave(min)  # do not forget to unweave if weaving is useless ;)
 
+How to change behaviour of class methods with a pointcut on their names ? (Remember it is not possible to weave on readonly methods such as `str.split`)
+
+>>> @weave_on(advices=double_advice, pointcut='simple.*')
+>>> class Test(object):
+>>>     def simple_one(self):
+>>>         return 1
+>>>     def simple_x(self, x):
+>>>         return x
+>>>     def three(self):
+>>>         return 3
+>>> assert Test().simple_one() == 1 * 2
+>>> assert Test().simple_x(2) == 2 * 2
+>>> assert Test().three() == 3
+>>> unweave(Test, pointcut='simple_one')
+>>> assert Test().simple_one() == 1
+>>> assert Test().simple_x(2) == 2 * 2
+
 Enjoy ...
 
 State of the art
@@ -231,8 +248,8 @@ Perspectives
 Donation
 --------
 
-.. image:: https://cdn.rawgit.com/gratipay/gratipay-badge/2.3.0/dist/gratipay.png
-   :target: https://gratipay.com/b3j0f/
+.. image:: https://liberapay.com/assets/widgets/donate.svg
+   :target: https://liberapay.com/b3j0f/donate
    :alt: I'm grateful for gifts, but don't have a specific funding goal.
 
 .. _Homepage: https://github.com/b3j0f/aop
