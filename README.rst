@@ -98,6 +98,7 @@ Examples
 --------
 
 How to change the behaviour of min by max ?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 >>> from b3j0f.aop import weave, is_intercepted
 >>> double_advice = lambda joinpoint: joinpoint.proceed() * 2
@@ -106,6 +107,7 @@ How to change the behaviour of min by max ?
 12
 
 How to check if a function is intercepted ?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 >>> from b3j0f.aop import is_intercepted
 >>> is_intercepted(min)
@@ -121,6 +123,7 @@ Ok, let's get back its previous behaviour ...
 False
 
 And with an annotation ?
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 >>> from b3j0f.aop import weave_on
 >>> weave_on(advices=double_advice)(min)
@@ -130,7 +133,10 @@ And with an annotation ?
 True
 >>> unweave(min)  # do not forget to unweave if weaving is useless ;)
 
-How to change behaviour of class methods with a pointcut on their names ? (Remember it is not possible to weave on readonly methods such as `str.split`)
+How to change behaviour of class methods with a pointcut ?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Remember it is not possible to weave on readonly methods such as ``str.split``.
 
 >>> @weave_on(advices=double_advice, pointcut='simple.*')
 >>> class Test(object):
