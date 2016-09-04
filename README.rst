@@ -140,12 +140,12 @@ How to change behaviour of class methods with a pointcut on their names ? (Remem
 >>>         return x
 >>>     def three(self):
 >>>         return 3
->>> assert Test().simple_one() == 1 * 2
->>> assert Test().simple_x(2) == 2 * 2
->>> assert Test().three() == 3
->>> unweave(Test, pointcut='simple_one')
->>> assert Test().simple_one() == 1
->>> assert Test().simple_x(2) == 2 * 2
+>>> assert Test().simple_one() == 1 * 2  # result is doubled
+>>> assert Test().simple_x(2) == 2 * 2  # result is doubled
+>>> assert Test().three() == 3  # normal result
+>>> unweave(Test, pointcut='simple_one')  # unweave simple_one only
+>>> assert Test().simple_one() == 1  # back to normal
+>>> assert Test().simple_x(2) == 2 * 2  # result is still doubled
 
 Enjoy ...
 
